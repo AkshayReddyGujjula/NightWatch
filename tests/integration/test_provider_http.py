@@ -14,11 +14,16 @@ NAMESPACE = "ns_http"
 OPERATION = "op_1"
 
 EVAL_HEADERS = {"Authorization": f"Bearer {EVALUATOR}"}
+DEMO_OPERATOR = "http-test-demo-operator"
 
 
 def make_client() -> TestClient:
     app = create_app(
-        ProviderSettings(provider_signing_secret=SECRET, evaluator_token=EVALUATOR),
+        ProviderSettings(
+            provider_signing_secret=SECRET,
+            evaluator_token=EVALUATOR,
+            live_internal_token=DEMO_OPERATOR,
+        ),
         db_path=":memory:",
     )
     return TestClient(app)
@@ -157,3 +162,60 @@ def test_scoped_token_cannot_touch_other_operations() -> None:
     headers = {"Authorization": f"Bearer {token}"}
     response = client.post("/capture", json=capture_body(operation_id="op_other"), headers=headers)
     assert response.status_code == 403
+
+
+def test_demo_operator_arms_real_fault_in_fresh_scoped_namespace() -> None:
+    client = make_client()
+    setup = client.post(
+        "/internal/demo/double-charge",
+        json={
+            "operation_id": "op_demo",
+            "intent_id": "pi_demo",
+            "amount_minor": 7999,
+            "currency": "GBP",
+        },
+        headers={"Authorization": f"Bearer {DEMO_OPERATOR}"},
+    )
+    assert setup.status_code == 200, setup.text
+    namespace = setup.json()["namespace"]
+    scoped = {"Authorization": f"Bearer {setup.json()['token']}"}
+
+    first = client.post(
+        "/capture",
+        json={
+            "operation_id": "op_demo",
+            "idempotency_key": "key_demo_1",
+            "amount_minor": 7999,
+            "currency": "GBP",
+            "intent_id": "pi_demo",
+        },
+        headers=scoped,
+    )
+    assert first.status_code == 504
+    second = client.post(
+        "/capture",
+        json={
+            "operation_id": "op_demo",
+            "idempotency_key": "key_demo_2",
+            "amount_minor": 7999,
+            "currency": "GBP",
+            "intent_id": "pi_demo",
+        },
+        headers=scoped,
+    )
+    assert second.status_code == 200
+    ledger = client.get(f"/internal/ledger/{namespace}", headers=EVAL_HEADERS)
+    assert len(ledger.json()["captures"]) == 2
+
+
+def test_demo_setup_rejects_missing_operator_token() -> None:
+    response = make_client().post(
+        "/internal/demo/double-charge",
+        json={
+            "operation_id": "op_demo",
+            "intent_id": "pi_demo",
+            "amount_minor": 7999,
+            "currency": "GBP",
+        },
+    )
+    assert response.status_code == 401

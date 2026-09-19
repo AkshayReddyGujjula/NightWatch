@@ -9,19 +9,21 @@ token bound to one namespace, operation IDs and expiry.
 from __future__ import annotations
 
 import hmac
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, Response
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from apps.contracts.base import NonEmptyStr, StrictModel, UtcDatetime
+from apps.contracts.base import IdStr, NonEmptyStr, StrictModel, UtcDatetime
 from apps.contracts.payment import (
     CaptureRequest,
     CaptureResponse,
     CaptureRow,
     FaultKind,
     LedgerView,
+    MinorAmount,
     OperationRegisterRequest,
     ProviderTokenClaims,
     RefundRequest,
@@ -44,6 +46,7 @@ class ProviderSettings(BaseSettings):
 
     provider_signing_secret: str = ""
     evaluator_token: str = ""
+    live_internal_token: str = ""
     provider_db_path: str = ""
 
 
@@ -59,6 +62,21 @@ class NamespaceResponse(StrictModel):
 class FaultArmRequest(StrictModel):
     namespace: NonEmptyStr
     fault: FaultKind
+
+
+class DemoDoubleChargeRequest(StrictModel):
+    """Exact operation frozen by the trusted operator before the demo checkout."""
+
+    operation_id: IdStr
+    intent_id: IdStr
+    amount_minor: MinorAmount
+    currency: str = "GBP"
+
+
+class DemoDoubleChargeSetup(StrictModel):
+    namespace: NonEmptyStr
+    token: NonEmptyStr
+    expires_at_utc: UtcDatetime
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -86,6 +104,18 @@ async def require_evaluator(
     supplied = _bearer_token(authorization)
     if supplied is None or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="invalid evaluator token")
+
+
+async def require_demo_operator(
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> None:
+    expected = request.app.state.settings.live_internal_token
+    if not expected:
+        raise HTTPException(status_code=503, detail="demo operator token is not configured")
+    supplied = _bearer_token(authorization)
+    if supplied is None or not hmac.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="invalid demo operator token")
 
 
 async def require_scoped_token(
@@ -179,6 +209,58 @@ async def read_ledger(
 
 
 # ----------------------------------------------------------------- store-facing
+
+
+@router.post(
+    "/internal/demo/double-charge",
+    response_model=DemoDoubleChargeSetup,
+)
+async def prepare_double_charge_demo(
+    body: DemoDoubleChargeRequest,
+    request: Request,
+    _: Annotated[None, Depends(require_demo_operator)],
+) -> DemoDoubleChargeSetup:
+    """Create a fresh immutable ledger namespace and arm the real incident.
+
+    This is operator-only rehearsal setup.  The returned token is scoped to the
+    one pre-registered operation; the live store never receives evaluator
+    authority and cannot inspect or rewrite the append-only ledger.
+    """
+    namespace = f"demo_double_charge_{uuid.uuid4().hex}"
+    ledger: LedgerStore = request.app.state.ledger
+    try:
+        ledger.create_namespace(namespace)
+        ledger.register_operation(
+            OperationRegisterRequest(
+                namespace=namespace,
+                operation_id=body.operation_id,
+                intent_id=body.intent_id,
+                amount_minor=body.amount_minor,
+                currency="GBP",
+                allowed_actions=["capture", "inquiry"],
+            )
+        )
+    except ProviderError as exc:
+        raise _as_http_error(exc) from exc
+    request.app.state.faults.arm(namespace, "DROP_AFTER_CAPTURE_ONCE")
+    expires_at = datetime.now(UTC) + timedelta(hours=2)
+    claims = ProviderTokenClaims(
+        incident_id=f"NW-DEMO-{uuid.uuid4().hex[:12]}",
+        candidate_id="A",
+        scenario_id="S01",
+        namespace=namespace,
+        allowed_operation_ids=[body.operation_id],
+        expires_at_utc=expires_at,
+    )
+    try:
+        token = mint_token(claims, request.app.state.settings.provider_signing_secret)
+    except TokenError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return DemoDoubleChargeSetup(
+        namespace=namespace,
+        token=token,
+        expires_at_utc=expires_at,
+    )
 
 
 @router.post("/capture", response_model=CaptureResponse)
