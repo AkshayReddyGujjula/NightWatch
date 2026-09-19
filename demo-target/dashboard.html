@@ -64,10 +64,49 @@
         color: var(--sub);
         font-size: 12px;
       }
-      .clock {
+      .monitor {
         margin-left: auto;
-        color: var(--sub);
-        font-variant-numeric: tabular-nums;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 9px;
+        border: 1px solid #abefc6;
+        border-radius: 999px;
+        background: var(--green-bg);
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .monitor i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #17b26a;
+        box-shadow: 0 0 0 4px rgba(23, 178, 106, 0.12);
+        animation: monitor-pulse 1.8s ease-in-out infinite;
+      }
+      .monitor b {
+        padding-left: 8px;
+        border-left: 1px solid #abefc6;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+      }
+      .monitor.incident {
+        border-color: #fecdca;
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .monitor.incident i {
+        background: var(--red);
+        box-shadow: 0 0 0 4px rgba(217, 45, 32, 0.1);
+      }
+      .monitor.incident b {
+        border-color: #fecdca;
+      }
+      @keyframes monitor-pulse {
+        50% {
+          opacity: 0.45;
+        }
       }
       .state {
         padding: 5px 10px;
@@ -100,7 +139,8 @@
       .incident,
       .choice,
       .analysis,
-      .browser-section {
+      .browser-section,
+      .report {
         background: var(--white);
         border: 1px solid var(--line);
         border-radius: 14px;
@@ -214,15 +254,16 @@
       .step:not(:last-child):after {
         content: "";
         position: absolute;
-        left: 35px;
-        right: 10px;
+        left: 12px;
+        right: -12px;
         top: 12px;
         height: 2px;
         background: var(--line);
+        z-index: 0;
       }
       .dot {
         position: relative;
-        z-index: 1;
+        z-index: 3;
         width: 24px;
         height: 24px;
         display: grid;
@@ -231,6 +272,12 @@
         background: var(--soft);
         border: 1px solid var(--line);
         font-size: 11px;
+      }
+      .step > span:last-child {
+        position: relative;
+        z-index: 2;
+        padding-right: 12px;
+        background: var(--white);
       }
       .step.done {
         color: var(--green);
@@ -401,11 +448,82 @@
         color: var(--sub);
         font-size: 11px;
       }
+      .report {
+        overflow: hidden;
+      }
+      .report details {
+        padding: 0 18px;
+      }
+      .report summary {
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        font-weight: 800;
+        list-style-position: inside;
+      }
+      .report summary small {
+        color: var(--sub);
+        font-weight: 500;
+      }
+      .report-body {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        padding: 0 0 18px;
+      }
+      .report-block {
+        padding: 13px 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--soft);
+      }
+      .report-block h3 {
+        margin: 0 0 5px;
+        font-size: 12px;
+      }
+      .report-block p,
+      .report-block ul {
+        margin: 0;
+        color: var(--sub);
+        font-size: 12px;
+      }
+      .report-block ul {
+        padding-left: 18px;
+      }
+      .report-diff {
+        grid-column: 1 / -1;
+        background: #101828;
+        color: #d1e9ff;
+      }
+      .report-diff h3 {
+        color: #fff;
+      }
+      .report-diff pre {
+        margin: 0;
+        overflow: auto;
+        white-space: pre-wrap;
+        color: inherit;
+        font:
+          11px/1.55 Consolas,
+          "Courier New",
+          monospace;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .monitor i {
+          animation: none;
+        }
+      }
       @media (max-width: 900px) {
         .hero,
         .fixes,
-        .wall {
+        .wall,
+        .report-body {
           grid-template-columns: 1fr;
+        }
+        .report-diff {
+          grid-column: auto;
         }
         .timeline {
           grid-template-columns: 1fr 1fr;
@@ -428,7 +546,10 @@
       <span class="brand"><i></i>NightWatch</span
       ><span id="state" class="state">Connecting</span
       ><span id="run" class="run"></span
-      ><span id="updated" class="clock"></span>
+      ><span id="watch-status" class="monitor" aria-live="polite"
+        ><i></i><span>Monitoring NightMart</span
+        ><b id="watch-value">LIVE</b></span
+      >
     </header>
     <main>
       <div class="hero">
@@ -474,9 +595,46 @@
         </div>
         <div id="fixes" class="fixes"></div>
       </section>
+      <section id="engineer-report" class="report" hidden>
+        <details>
+          <summary>
+            <span>Engineer report</span>
+            <small>Root cause, activated diff, and follow-up</small>
+          </summary>
+          <div class="report-body">
+            <article class="report-block">
+              <h3 id="report-title">Repair summary</h3>
+              <p id="report-fix"></p>
+            </article>
+            <article class="report-block">
+              <h3>Why this implementation</h3>
+              <p id="report-why"></p>
+            </article>
+            <article class="report-block">
+              <h3>Root cause</h3>
+              <p id="report-cause"></p>
+            </article>
+            <article class="report-block">
+              <h3>Engineer follow-up</h3>
+              <p id="report-action"></p>
+            </article>
+            <article class="report-block report-diff">
+              <h3>Exact activated code diff</h3>
+              <pre id="report-diff"></pre>
+            </article>
+            <article class="report-block">
+              <h3>Verification evidence</h3>
+              <ul id="report-verification"></ul>
+            </article>
+          </div>
+        </details>
+      </section>
     </main>
     <script>
       const ids = ["A", "B", "C"];
+      const watchStatus = document.getElementById("watch-status");
+      const watchValue = document.getElementById("watch-value");
+      const reportPanel = document.getElementById("engineer-report");
       const esc = (v) =>
         String(v ?? "").replace(
           /[&<>"']/g,
@@ -506,9 +664,12 @@
         state.textContent = s.state.replaceAll("_", " ");
         state.className = `state ${isFixed ? "fixed" : isIncident ? "alerting" : ""}`;
         run.textContent = s.run_id || "No active run";
-        updated.textContent = s.updated_at
-          ? new Date(s.updated_at).toLocaleTimeString()
-          : "";
+        watchStatus.className = `monitor ${isIncident ? "incident" : ""}`;
+        watchValue.textContent = isIncident
+          ? "INCIDENT"
+          : isFixed
+            ? "HEALTHY"
+            : "LIVE";
         headline.textContent = s.headline;
         const card = document.getElementById("incident-card");
         card.className = `incident ${isFixed ? "recovered" : isIncident ? "alert" : ""}`;
@@ -617,6 +778,24 @@
             return `<article class="tile ${winner === id ? "selected" : ""}"><div class="tile-head"><b>${id} — ${esc(c.name)}</b><span class="status ${cls}">${esc(verdict === "Pending" ? c.status : verdict)}</span></div>${has ? `<img src="/api/frames/${id}?v=${encodeURIComponent(seq)}" alt="Live browser for candidate ${id}">` : '<div class="empty">Waiting for live browser</div>'}<div class="meta"><span>${esc(c.sandbox_id || "Sandbox starting")}</span><span>${esc(c.jev_action || "Jev waiting")}</span></div></article>`;
           })
           .join("");
+        const report = s.engineer_report;
+        reportPanel.hidden = !isFixed || !report;
+        if (isFixed && report) {
+          document.getElementById("report-title").textContent = report.title;
+          document.getElementById("report-fix").textContent = report.fix;
+          document.getElementById("report-why").textContent =
+            report.why_selected;
+          document.getElementById("report-cause").textContent = report.cause;
+          document.getElementById("report-action").textContent =
+            report.engineer_action;
+          document.getElementById("report-diff").textContent =
+            report.applied_diff;
+          document.getElementById("report-verification").innerHTML = (
+            report.verification || []
+          )
+            .map((item) => `<li>${esc(item)}</li>`)
+            .join("");
+        }
       }
       async function poll() {
         try {

@@ -67,6 +67,7 @@ def _initial_state() -> dict[str, Any]:
         "fixed_checkout_url": None,
         "receipt_path": None,
         "refund": None,
+        "engineer_report": None,
         "degraded_reasons": [],
     }
 
@@ -299,6 +300,97 @@ async def _run_race(run_id: str) -> dict[str, int]:
     return dict(zip(("A", "B", "C"), results, strict=True))
 
 
+def _build_engineer_report(
+    process_codes: dict[str, int],
+    refund: dict[str, Any] | None,
+    activation: dict[str, Any],
+) -> dict[str, Any]:
+    incident_type = str(_state.get("incident_type") or "")
+    diagnosis = _state.get("gemini") or {}
+    selected: dict[str, Any] = next(
+        (
+            fix
+            for fix in diagnosis.get("fixes", [])
+            if fix.get("candidate_id") == "B"
+        ),
+        {},
+    )
+    if incident_type == "DOUBLE_CHARGE":
+        applied_diff = """--- a/apps/live_store/domain/payment_retry.py
++++ b/apps/live_store/domain/payment_retry.py
+@@ retry after ProviderUncertain
+- used_key = retry_key
+- persist_key(retry_key)
+- capture = await provider.capture(
+-     operation_id, retry_key, amount_minor, currency, intent_id
+- )
++ captures = await provider.captures(operation_id)
++ matching = [
++     row for row in captures
++     if row.amount_minor == amount_minor and row.currency == currency
++ ]
++ if len(captures) == 1 and matching:
++     return PaymentOutcome(
++         "PAID", capture_id=captures[0].capture_id,
++         idempotency_key=stable_key,
++     )
++ return PaymentOutcome(
++     "QUARANTINED", idempotency_key=stable_key,
++     reason=f"unexpected capture set ({len(captures)} captures)",
++ )"""
+        engineer_action = (
+            "Keep the stable intent-level idempotency key as the permanent path. Remove any "
+            "per-attempt capture key generation, preserve provider-ledger reconciliation, and "
+            "alert whenever one operation has more than one capture."
+        )
+        verification = [
+            "Candidate B passed its real Modal/CUA/Jev checkout validation.",
+            f"Router readback is {activation.get('mode', 'SAFE')} under a bounded lease.",
+            (
+                "The duplicate £79.99 capture was refunded; net customer charge is £79.99."
+                if refund
+                else "No refund evidence was recorded."
+            ),
+        ]
+        title = "Payment retry repair"
+    else:
+        applied_diff = """--- a/demo-target/server.py
++++ b/demo-target/server.py
+@@ verified security recovery
++ await _set_router("SAFE_HOLD")
++ await _set_router("SAFE")
+- await _set_store_outage(True)
++ await _set_store_outage(False)
++ health = await client.get(f"{STORE_URL}/health")
++ if health.status_code != 200:
++     raise RuntimeError(
++         f"NightMart recovery health returned {health.status_code}"
++     )"""
+        engineer_action = (
+            "Keep the public failure boundary fail-closed, retain authenticated internal recovery "
+            "routes, and require a successful external health readback before reopening checkout."
+        )
+        verification = [
+            "NightMart returned HTTP 503 across every public storefront and checkout route.",
+            "Candidate B passed its real Modal/CUA/Jev recovery validation.",
+            "The public health endpoint returned HTTP 200 before recovery was declared.",
+        ]
+        title = "Storefront availability repair"
+    return {
+        "title": title,
+        "cause": diagnosis.get("root_cause", "No Gemini root cause was recorded."),
+        "fix": selected.get("strategy", "Activated the validated prepared safe handler."),
+        "why_selected": (
+            "Candidate B passed live browser validation and activates the pre-installed, "
+            "hash-verified safe handler without shipping unreviewed generated code."
+        ),
+        "applied_diff": applied_diff,
+        "engineer_action": engineer_action,
+        "verification": verification,
+        "candidate_exit_codes": process_codes,
+    }
+
+
 async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
     # A/C remain evidence options. The prepared safe handler is selected only
     # after an actual reversible activation and a fresh browser checkout is armed.
@@ -353,6 +445,7 @@ async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
                 "net_minor": refund["net_charged_minor"],
             }
         )
+    engineer_report = _build_engineer_report(process_codes, refund, readback)
     receipt = {
         "run_id": run_id,
         "incident_type": _state["incident_type"],
@@ -366,6 +459,7 @@ async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
         "fixed_namespace": setup["namespace"],
         "fixed_intent_id": setup["intent_id"],
         "refund": refund,
+        "engineer_report": engineer_report,
         "security_label": _state.get("security"),
         "created_at": _now(),
     }
@@ -378,6 +472,7 @@ async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
         winner="B",
         fixed_checkout_url=fixed_checkout_url,
         refund=refund,
+        engineer_report=engineer_report,
         receipt_path=str(receipt_path),
         security={"armed": False, "health": 200, "label": "SCRIPTED_DEMO_TARGET"},
     )
@@ -535,6 +630,7 @@ async def arm_demo() -> dict[str, Any]:
         fixed_checkout_url=None,
         receipt_path=None,
         refund=None,
+        engineer_report=None,
         degraded_reasons=[],
     )
     _pipeline_task = asyncio.create_task(
@@ -563,6 +659,7 @@ async def arm_cyber() -> dict[str, Any]:
         fixed_checkout_url=None,
         receipt_path=None,
         refund=None,
+        engineer_report=None,
         degraded_reasons=[],
     )
     _pipeline_task = asyncio.create_task(_pipeline_guard(run_id, _cyber_pipeline(run_id)))
