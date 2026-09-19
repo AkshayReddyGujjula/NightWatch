@@ -56,6 +56,10 @@ async def test_api_scenarios_pass_with_isolated_evidence_and_ui_is_labelled() ->
         assert suite.oracle.validate_evidence_set(spec, results) == []
         # Overall ERROR is honest: the two required UI scenarios are unavailable.
         assert suite.oracle.grade_candidate(spec, results).verdict == "ERROR"
+        # CORE ignores only the labelled browser omissions; all API evidence remains required.
+        assert suite.oracle.grade_candidate(
+            spec, results, demo_mode="CORE"
+        ).verdict == "PASS"
     finally:
         suite.close()
 

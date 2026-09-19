@@ -36,6 +36,7 @@ def test_empty_results_never_vacuously_pass() -> None:
         assert errors
         assert "missing=" in errors[0]
         assert suite.oracle.grade_candidate(spec, []).verdict == "ERROR"
+        assert suite.oracle.grade_candidate(spec, [], demo_mode="CORE").verdict == "ERROR"
     finally:
         suite.close()
 
@@ -99,3 +100,48 @@ def test_oracle_result_evidence_ids_are_never_empty() -> None:
     with pytest.raises(ValueError, match="trusted evidence IDs"):
         Oracle._result("INV-01", "FAIL", "expected", "observed", [])
     assert datetime.now(UTC).tzinfo is not None
+
+
+@pytest.mark.asyncio
+async def test_core_passes_required_api_matrix_and_full_keeps_browser_required() -> None:
+    suite = ScenarioSuite()
+    try:
+        spec = _spec(suite)
+        results = await suite.execute_async(spec)
+        assert suite.oracle.validate_evidence_set(
+            spec, results, demo_mode="CORE"
+        ) == []
+        core = suite.oracle.grade_candidate(spec, results, demo_mode="CORE")
+        full = suite.oracle.grade_candidate(spec, results, demo_mode="FULL")
+        assert core.verdict == "PASS"
+        assert core.scenario_ids == ["S03", "S04", "S05", "S06", "S07", "S08"]
+        assert full.verdict == "ERROR"
+        assert full.scenario_ids == [
+            "S01",
+            "S02",
+            "S03",
+            "S04",
+            "S05",
+            "S06",
+            "S07",
+            "S08",
+        ]
+    finally:
+        suite.close()
+
+
+@pytest.mark.asyncio
+async def test_core_does_not_require_browser_rows_but_full_does() -> None:
+    suite = ScenarioSuite()
+    try:
+        spec = _spec(suite)
+        results = await suite.execute_async(spec)
+        api_only = [result for result in results if result.scenario_id not in {"S01", "S02"}]
+        assert suite.oracle.grade_candidate(
+            spec, api_only, demo_mode="CORE"
+        ).verdict == "PASS"
+        assert suite.oracle.grade_candidate(
+            spec, api_only, demo_mode="FULL"
+        ).verdict == "ERROR"
+    finally:
+        suite.close()

@@ -54,6 +54,9 @@ CHECKOUT_BODY = {
     "address": "1 Evidence Street, London",
 }
 
+DemoMode = Literal["FULL", "CORE"]
+CORE_SCENARIO_IDS = frozenset({"S03", "S04", "S05", "S06", "S07", "S08"})
+
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
@@ -324,17 +327,32 @@ class Oracle:
         )
 
     def validate_evidence_set(
-        self, spec: CandidateSpec, results: list[ScenarioResult]
+        self,
+        spec: CandidateSpec,
+        results: list[ScenarioResult],
+        *,
+        demo_mode: DemoMode = "FULL",
     ) -> list[str]:
         errors: list[str] = []
+        required_scenarios = [
+            scenario
+            for scenario in self.registry.scenarios
+            if demo_mode == "FULL" or scenario.scenario_id in CORE_SCENARIO_IDS
+        ]
+        if not required_scenarios:
+            errors.append(f"{demo_mode} produced an empty required scenario set")
         expected = Counter(
             (spec.candidate_id, scenario.scenario_id, invariant)
-            for scenario in self.registry.scenarios
+            for scenario in required_scenarios
             for invariant in scenario.invariants
         )
         actual = Counter(
             (result.candidate_id, result.scenario_id, invariant.invariant_id)
             for result in results
+            if any(
+                scenario.scenario_id == result.scenario_id
+                for scenario in required_scenarios
+            )
             for invariant in result.invariants
         )
         if not expected:
@@ -343,10 +361,28 @@ class Oracle:
             missing = list((expected - actual).elements())
             extra = list((actual - expected).elements())
             errors.append(f"evidence matrix mismatch: missing={missing}, extra={extra}")
-        result_ids = Counter(result.scenario_id for result in results)
-        expected_ids = Counter(scenario.scenario_id for scenario in self.registry.scenarios)
+        known_ids = {scenario.scenario_id for scenario in self.registry.scenarios}
+        all_result_ids = Counter(result.scenario_id for result in results)
+        duplicates = {
+            scenario_id: count
+            for scenario_id, count in all_result_ids.items()
+            if count != 1
+        }
+        if duplicates:
+            errors.append(f"scenario results must be unique: {duplicates}")
+        unexpected = sorted(set(all_result_ids) - known_ids)
+        if unexpected:
+            errors.append(f"unexpected scenario results: {unexpected}")
+        result_ids = Counter(
+            result.scenario_id
+            for result in results
+            if result.scenario_id in {scenario.scenario_id for scenario in required_scenarios}
+        )
+        expected_ids = Counter(scenario.scenario_id for scenario in required_scenarios)
         if result_ids != expected_ids:
-            errors.append(f"scenario set mismatch: actual={dict(result_ids)}")
+            errors.append(
+                f"required {demo_mode} scenario set mismatch: actual={dict(result_ids)}"
+            )
         for result in results:
             if result.candidate_id != spec.candidate_id:
                 errors.append(f"{result.scenario_id}: wrong candidate_id {result.candidate_id}")
@@ -372,9 +408,13 @@ class Oracle:
         return errors
 
     def grade_candidate(
-        self, spec: CandidateSpec, results: list[ScenarioResult]
+        self,
+        spec: CandidateSpec,
+        results: list[ScenarioResult],
+        *,
+        demo_mode: DemoMode = "FULL",
     ) -> CandidateEvaluation:
-        errors = self.validate_evidence_set(spec, results)
+        errors = self.validate_evidence_set(spec, results, demo_mode=demo_mode)
         controls = self.run_negative_controls(spec.candidate_id)
         controls_ok = all(
             control.status == "FAIL"
@@ -390,9 +430,19 @@ class Oracle:
         )
         if not controls_ok:
             errors.append("negative controls did not fail for the exact intended invariants")
-        if errors or any(result.status == "ERROR" for result in results):
+        required_ids = {
+            scenario.scenario_id
+            for scenario in self.registry.scenarios
+            if demo_mode == "FULL" or scenario.scenario_id in CORE_SCENARIO_IDS
+        }
+        required_results = [
+            result for result in results if result.scenario_id in required_ids
+        ]
+        if errors or not required_results or any(
+            result.status == "ERROR" for result in required_results
+        ):
             verdict: Literal["PASS", "FAIL", "ERROR"] = "ERROR"
-        elif any(result.status == "FAIL" for result in results):
+        elif any(result.status == "FAIL" for result in required_results):
             verdict = "FAIL"
         else:
             # Not vacuous: validate_evidence_set proved the exact non-empty matrix.
@@ -406,9 +456,18 @@ class Oracle:
         )
         return CandidateEvaluation(
             candidate_id=spec.candidate_id,
-            scenario_ids=[scenario.scenario_id for scenario in self.registry.scenarios],
+            scenario_ids=[
+                scenario.scenario_id
+                for scenario in self.registry.scenarios
+                if scenario.scenario_id in required_ids
+            ],
             invariant_ids=sorted(
-                {item for scenario in self.registry.scenarios for item in scenario.invariants}
+                {
+                    item
+                    for scenario in self.registry.scenarios
+                    if scenario.scenario_id in required_ids
+                    for item in scenario.invariants
+                }
             ),
             verdict=verdict,
             started_at_utc=min((result.started_at_utc for result in results), default=now),

@@ -36,8 +36,11 @@ async def main() -> int:
         )
         results = await suite.execute_async(spec)
         controls = suite.oracle.run_negative_controls(spec.candidate_id)
-        evidence_errors = suite.oracle.validate_evidence_set(spec, results)
-        evaluation = suite.oracle.grade_candidate(spec, results)
+        evidence_errors = suite.oracle.validate_evidence_set(
+            spec, results, demo_mode="CORE"
+        )
+        evaluation = suite.oracle.grade_candidate(spec, results, demo_mode="CORE")
+        full_evaluation = suite.oracle.grade_candidate(spec, results, demo_mode="FULL")
         api_results = [result for result in results if result.scenario_id >= "S03"]
         ui_results = [result for result in results if result.scenario_id in {"S01", "S02"}]
         controls_green = {
@@ -87,12 +90,17 @@ async def main() -> int:
             ],
             "negative_controls": controls_green,
             "candidate_evaluation": json.loads(evaluation.model_dump_json()),
+            "full_candidate_evaluation": json.loads(
+                full_evaluation.model_dump_json()
+            ),
         }
         print(json.dumps(output, indent=2, sort_keys=True))
         local_gate_green = (
             output["api_scenarios_green"]
             and output["browser_scenarios_labelled"]
             and not evidence_errors
+            and evaluation.verdict == "PASS"
+            and full_evaluation.verdict == "ERROR"
             and controls_green["NC-01"]["failed_invariants"] == ["INV-02", "INV-05"]
             and controls_green["NC-02"]["failed_invariants"] == ["INV-01"]
         )
