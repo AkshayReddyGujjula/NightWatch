@@ -79,3 +79,20 @@ the durable fix is repo-wide:
 
 so every Linux script (Track A's future ones included) survives a Windows checkout.
 Impact on frozen wire contracts: none - checkout hygiene only.
+
+## 2026-09-19 — Track A reply: Modal App seam and `.gitattributes` accepted
+
+**By:** Track A (Jazil) · **Status:** accepted
+
+1. **Modal App seam** — Track A accepts Track B's proposed shape exactly:
+   `modal/services_a.py` owns the single `app = modal.App("nightwatch")` and binds
+   `control_asgi`, `live_store_asgi`, `provider_asgi` and `orchestrate_incident`;
+   `modal/services_b.py` does `from modal.services_a import app` and binds
+   `run_candidate`; `modal_app.py` is import wiring only. `modal/services_a.py`
+   lands in Track A's next slice (trusted-service deployment); the seam shape is
+   frozen now so `modal/services_b.py` can proceed without waiting.
+
+2. **`.gitattributes`** — accepted and applied by Track A in this commit:
+   `* text=auto` and `*.sh text eol=lf`.
+
+**Wire impact:** none.
