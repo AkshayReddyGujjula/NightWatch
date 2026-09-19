@@ -50,15 +50,18 @@ RUNNER_IMAGE = (
     .add_local_file("modal/services_a.py", "/root/services_a.py")
 )
 
-# Reduced mode until the scenario executor + grader are wired (Track A's
-# services/oracle.py): the world boots with a labelled stub server and the
-# runner returns an ERROR evaluation recording the missing link. The live
-# candidate payload (apps/live_store + scoped provider token) replaces this the
-# moment the provider is reachable from a world.
+# Candidate worlds boot with the browser stack enabled: one controller-owned
+# Chrome with a world-local profile, one bounded CUA daemon and one named CUA
+# session per Sandbox. Until the S01/S02 journey driver is wired (Track A's
+# scenario executor + services/jev), a booted world is real browser-isolation
+# evidence only — it is not a claim that a browser journey ran. The payload is a
+# plain static file server with no candidate code; the scenario executor injects
+# the world-scoped provider token when it lands.
 _STUB_PAYLOAD = CandidatePayload(
     files={},
     start_command="python3 -m http.server 8080 --bind 127.0.0.1",
     ready_path="/",
+    browser_enabled=True,
 )
 
 
@@ -105,7 +108,7 @@ def _lifecycle_evidence(lifecycle: WorldLifecycle | None) -> dict[str, object]:
 @app.function(
     image=RUNNER_IMAGE,
     secrets=[modal.Secret.from_name("nightwatch-evidence-ingest")],
-    max_containers=3,
+    max_containers=8,
     timeout=600,
 )
 async def run_candidate(spec_json: str) -> str:
@@ -126,6 +129,10 @@ async def run_candidate_impl(spec_json: str, *, app: modal.App) -> str:
         app=app,
         payload=_STUB_PAYLOAD,
         environment=os.environ.get("MODAL_ENVIRONMENT", ""),
+        # Sandbox lifetime must stay below the function timeout (600 s) so a
+        # killed function can never leave a live Sandbox behind.
+        timeout_s=540,
+        idle_timeout_s=240,
     )
     run = await asyncio.to_thread(
         run_candidate_world,
@@ -146,15 +153,36 @@ async def run_candidate_impl(spec_json: str, *, app: modal.App) -> str:
     if evidence.get("function_call_id") is None and function_call_id is not None:
         evidence["function_call_id"] = function_call_id
     evaluation = CandidateEvaluation.model_validate_json(json.dumps(evidence), strict=True)
+    # Per-world isolation facts measured inside this Sandbox (plan §12.2): the
+    # browser, CUA daemon and the app/controller OS-user split this world owns.
+    world_facts = world.world_evidence
     print(
         json.dumps(
             {
                 "event": "candidate_world_finished",
                 "candidate_id": spec.candidate_id,
+                "provider_namespace": spec.provider_namespace,
                 "function_call_id": function_call_id,
                 "verdict": evaluation.verdict,
                 "failures": run.failures,
                 **_lifecycle_evidence(lifecycle),
+                "world": {
+                    "app_uid": world_facts.get("app_uid"),
+                    "controller_uid": world_facts.get("controller_uid"),
+                    "app_home_mode": world_facts.get("app_home_mode"),
+                    "controller_home_mode": world_facts.get("controller_home_mode"),
+                    "run_dir_mode": world_facts.get("run_dir_mode"),
+                    "cua_socket_mode": world_facts.get("cua_socket_mode"),
+                    "cua_manifest_sha256": world_facts.get("cua_manifest_sha256"),
+                    "cua_driver_version": world_facts.get("cua_driver_version"),
+                    "cua_driver_pid": world_facts.get("cua_driver_pid"),
+                    "chrome_pid": world_facts.get("chrome_pid"),
+                    "chrome_profile": world_facts.get("chrome_profile"),
+                    "chrome_profile_mode": world_facts.get("chrome_profile_mode"),
+                    "browser_version": world_facts.get("browser_version"),
+                    "browser_window_id": world_facts.get("browser_window_id"),
+                    "browser_devtools_port": world_facts.get("browser_devtools_port"),
+                },
             }
         )
     )

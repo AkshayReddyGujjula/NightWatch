@@ -48,6 +48,8 @@ def error_evaluation(
     expected_scenario_ids: Sequence[ScenarioId],
     expected_invariant_ids: Sequence[InvariantId],
     sandbox_id: str | None = None,
+    started_at_utc: datetime | None = None,
+    finished_at_utc: datetime | None = None,
 ) -> CandidateEvaluation:
     """One candidate's ERROR shell when its world produced no usable result.
 
@@ -56,16 +58,27 @@ def error_evaluation(
     ``(candidate_id, scenario_id, invariant_id)`` tuples instead of on an empty
     list. The failure reason belongs in the control-plane event log — the
     frozen evaluation contract has no field for it.
+
+    ``started_at_utc``/``finished_at_utc`` carry the world's measured UTC
+    lifecycle window when one exists (plan §12.3), so the race script can
+    compute real concurrency overlap from committed timestamps instead of the
+    requested container count.
     """
     now = datetime.now(UTC)
+    # One instant when only one side of the window is known, so the recorded
+    # window can never invert (started > finished).
+    if started_at_utc is None and finished_at_utc is not None:
+        started_at_utc = finished_at_utc
+    if finished_at_utc is None:
+        finished_at_utc = started_at_utc or now
     return CandidateEvaluation(
         candidate_id=spec.candidate_id,
         scenario_ids=list(expected_scenario_ids),
         invariant_ids=list(expected_invariant_ids),
         sandbox_id=sandbox_id,
         verdict="ERROR",
-        started_at_utc=now,
-        finished_at_utc=now,
+        started_at_utc=started_at_utc or now,
+        finished_at_utc=finished_at_utc,
     )
 
 

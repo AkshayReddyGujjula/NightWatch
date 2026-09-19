@@ -214,18 +214,22 @@ if [ "${NW_BROWSER_ENABLED:-1}" = "1" ]; then
 # The world's Chromium is launched by a generated helper, owned by the
 # controller identity, with a world-local mode-0700 profile and forced
 # accessibility. The helper is the single source of truth for the launch
-# because Chrome must be restarted once after CUA enables the profile's
-# remote-debugging setting (browser_requires_setup -> restart -> attach):
-# launch-time debugging flags are deliberately ignored by the driver, so the
-# endpoint appears only after the product's own auto-connect setting is on.
+# because the startup URL and the profile directory must be exactly what the
+# bootstrap recorded (the driver reads /proc/<pid>/cmdline and the profile's
+# DevToolsActivePort to prove endpoint ownership).
 #
 # Probe evidence, driver 0.28.2: (1) with an origin-scoped bounded manifest the
-# typed surface refuses the first browser_navigate from a fresh about:blank
-# tab for every manifest origin spelling -> the browser must start at an
-# allowed origin; (2) launching through the /usr/bin wrapper makes the app
-# identity miss the manifest entry -> launch the binary directly; (3) the
-# remote-debugging setting is toggled once by CUA's bounded setup route and
-# survives a restart in this world-local profile.
+# typed surface refuses navigation/observation from a fresh about:blank tab for
+# every manifest origin spelling -> the browser must start at an allowed origin;
+# (2) launching through the /usr/bin wrapper makes the app identity miss the
+# manifest entry -> launch the binary directly; (3) the existing-profile attach
+# proof previously failed against an endpoint the driver itself had to enable
+# (browser_requires_setup -> restart -> "did not expose a uniquely PID-owned
+# loopback endpoint after the exact setup action"). Route A: declare the
+# loopback DevTools endpoint at launch with --remote-debugging-port=0 so
+# DevToolsActivePort exists under the controller-owned profile before
+# browser_prepare is called; the Linux driver's documented behaviour is to
+# detect an existing, PID-owned loopback endpoint without side effects.
 cat >"$RUN_DIR/launch_browser.sh" <<'WRAPPER'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -234,7 +238,8 @@ CTL_USER=nightwatch_controller
 CTL_UID="$(id -u "$CTL_USER")"
 CTL_GID="$(id -g "$CTL_USER")"
 PROFILE="${RUN_DIR}/chrome-profile"
-BROWSER_START_URL="${NW_BROWSER_START_URL:-http://127.0.0.1:8080/}"
+BROWSER_START_URL="${NW_BROWSER_START_URL:-http://127.0.0.1:${NW_APP_PORT:-8080}/}"
+BROWSER_DEBUG_PORT="${NW_BROWSER_DEBUG_PORT:-0}"
 ENV_FILE="${RUN_DIR}/controller.env"
 
 DISPLAY=""; XAUTHORITY=""; DBUS_SESSION_BUS_ADDRESS=""; XDG_RUNTIME_DIR=""
@@ -255,54 +260,95 @@ as_ctl() {
     XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" "$@"
 }
 
-for wid in $(as_ctl xprop -root _NET_CLIENT_LIST 2>/dev/null | sed -n 's/.*window id #//p' | tr ',' ' '); do
-  owner="$(as_ctl xprop -id "$wid" _NET_WM_PID 2>/dev/null | sed -n 's/.*= //p' | tr -d ' ')"
-  if [ -n "$owner" ] && [ -e "/proc/$owner/exe" ] && \
-     [ "$(readlink -f "/proc/$owner/exe")" = "/opt/google/chrome/chrome" ]; then
-    kill -TERM "$owner" 2>/dev/null || true
-  fi
-done
-sleep 0.5
-pkill -u "$CTL_UID" -f '/opt/google/chrome/chrome' 2>/dev/null || true
-sleep 0.5
-
-install -d -o "$CTL_USER" -g "$CTL_USER" -m 0700 "$PROFILE"
-as_ctl nohup /opt/google/chrome/chrome \
-  --user-data-dir="$PROFILE" \
-  --force-renderer-accessibility \
-  --no-first-run --no-default-browser-check \
-  --no-sandbox --disable-dev-shm-usage \
-  --window-size=1050,780 --window-position=10,10 \
-  "$BROWSER_START_URL" \
-  >"$RUN_DIR/chrome.log" 2>&1 &
-
-PID=""
-WINDOW_ID=""
-for _ in $(seq 1 150); do
+kill_existing_chrome() {
   for wid in $(as_ctl xprop -root _NET_CLIENT_LIST 2>/dev/null | sed -n 's/.*window id #//p' | tr ',' ' '); do
     owner="$(as_ctl xprop -id "$wid" _NET_WM_PID 2>/dev/null | sed -n 's/.*= //p' | tr -d ' ')"
     if [ -n "$owner" ] && [ -e "/proc/$owner/exe" ] && \
        [ "$(readlink -f "/proc/$owner/exe")" = "/opt/google/chrome/chrome" ]; then
-      PID="$owner"
-      WINDOW_ID="$wid"
-      break
+      kill -TERM "$owner" 2>/dev/null || true
     fi
   done
-  [ -n "$PID" ] && break
-  sleep 0.2
-done
+  sleep 0.5
+  pkill -u "$CTL_UID" -f '/opt/google/chrome/chrome' 2>/dev/null || true
+  sleep 0.5
+}
+
+kill_existing_chrome
+
+install -d -o "$CTL_USER" -g "$CTL_USER" -m 0700 "$PROFILE"
+
+# One launch that finds the browser window. Chrome startup on a cold world can
+# occasionally beat the window-manager registration; a single honest retry keeps
+# a transient miss from failing a whole candidate world (observed once in the
+# six-world smoke: GCM registration noise, no window within 30 s).
+launch_chrome_once() {
+  as_ctl nohup /opt/google/chrome/chrome \
+    --user-data-dir="$PROFILE" \
+    --remote-debugging-port="$BROWSER_DEBUG_PORT" \
+    --remote-debugging-address=127.0.0.1 \
+    --force-renderer-accessibility \
+    --no-first-run --no-default-browser-check \
+    --no-sandbox --disable-dev-shm-usage \
+    --window-size=1050,780 --window-position=10,10 \
+    "$BROWSER_START_URL" \
+    >"$RUN_DIR/chrome.log" 2>&1 &
+
+  PID=""
+  WINDOW_ID=""
+  for _ in $(seq 1 150); do
+    for wid in $(as_ctl xprop -root _NET_CLIENT_LIST 2>/dev/null | sed -n 's/.*window id #//p' | tr ',' ' '); do
+      owner="$(as_ctl xprop -id "$wid" _NET_WM_PID 2>/dev/null | sed -n 's/.*= //p' | tr -d ' ')"
+      if [ -n "$owner" ] && [ -e "/proc/$owner/exe" ] && \
+         [ "$(readlink -f "/proc/$owner/exe")" = "/opt/google/chrome/chrome" ]; then
+        PID="$owner"
+        WINDOW_ID="$wid"
+        break
+      fi
+    done
+    [ -n "$PID" ] && break
+    sleep 0.2
+  done
+}
+
+launch_chrome_once
+if [ -z "$PID" ]; then
+  echo "nightwatch: chrome window not detected, retrying once" >&2
+  tail -n 20 "$RUN_DIR/chrome.log" >&2 || true
+  kill_existing_chrome
+  launch_chrome_once
+fi
 if [ -z "$PID" ]; then
   tail -n 60 "$RUN_DIR/chrome.log" >&2 || true
   exit 1
 fi
 
-python3 - "$RUN_DIR/browser.json" "$PID" "$WINDOW_ID" "$BROWSER_START_URL" <<'PY'
+python3 - "$RUN_DIR/browser.json" "$PID" "$WINDOW_ID" "$BROWSER_START_URL" "$PROFILE" <<'PY'
 import json
+import os
 import sys
 import time
 
-path, pid, window_id, start_url = sys.argv[1:5]
+path, pid, window_id, start_url, profile = sys.argv[1:6]
 window_value = int(window_id, 16) if window_id.lower().startswith("0x") else int(window_id)
+
+# The DevTools endpoint is declared at launch (--remote-debugging-port=0) and
+# Chrome publishes the actual port plus the browser websocket path in
+# <user-data-dir>/DevToolsActivePort. Record it so the evidence names the exact
+# PID-owned loopback endpoint the driver is asked to attach to.
+devtools_port = None
+devtools_ws_path = None
+deadline = time.monotonic() + 10
+while time.monotonic() < deadline:
+    try:
+        with open(os.path.join(profile, "DevToolsActivePort"), encoding="utf-8") as handle:
+            lines = [line.strip() for line in handle.read().splitlines() if line.strip()]
+        if lines:
+            devtools_port = int(lines[0])
+            devtools_ws_path = lines[1] if len(lines) > 1 else None
+            break
+    except (OSError, ValueError):
+        time.sleep(0.1)
+
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(
         {
@@ -310,6 +356,8 @@ with open(path, "w", encoding="utf-8") as handle:
             "window_id": window_value,
             "start_url": start_url,
             "started_monotonic_ns": time.monotonic_ns(),
+            "devtools_port": devtools_port,
+            "devtools_ws_path": devtools_ws_path,
         },
         handle,
         indent=2,
@@ -424,6 +472,7 @@ evidence = {
     "browser_start_url": os.environ["NW_EV_BROWSER_START_URL"],
     "browser_window_id": browser_json.get("window_id"),
     "browser_started_monotonic_ns": browser_json.get("started_monotonic_ns"),
+    "browser_devtools_port": browser_json.get("devtools_port"),
     "cua_driver_version": run("cua-driver", "--version"),
     "browser_version": run("google-chrome", "--version") or run("chromium", "--version"),
     "run_dir_mode": run("stat", "-c", "%a %U:%G", "/run/nightwatch"),
