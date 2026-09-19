@@ -1,6 +1,6 @@
 # NightWatch: final six-hour build and architecture plan
 
-**Version:** 1.2, 19 September 2026 — incorporates the two adversarial stress-review passes and the interactive decision review; findings are logged in §31 and the decisions taken are recorded in §31.4  
+**Version:** 1.3, 19 September 2026 — incorporates the two adversarial stress-review passes, the interactive decision review, and the §14.4 sub-5-minute runtime budget; findings are logged in §31  
 **Status:** implementation-ready; Section 2 is the frozen default unless Akshay and Jazil explicitly change it before the T+0:20 contract freeze  
 **Team:** two builders — **Jazil owns Track A** (domain, trusted authority, Gemini, proof) and **Akshay owns Track B** (Modal, Jev/CUA, dashboard). One laptop/branch owns each whole track; no path is edited by both.  
 **Build window:** T+0 to T+6h from whenever coding actually starts; T+6h to T+7h is submission, recording, secret-scrub and rehearsal time. Fixed anchors, whatever T+0 turns out to be: **19:00 submission** and **20:00 live demo**.  
@@ -132,7 +132,7 @@ Do not claim a browser-agent result when Jev + CUA did not run, a Modal Sandbox 
 | Property | Target | Interpretation |
 | --- | --- | --- |
 | Detection-to-containment | `<180 s` engineering target, applies only to `DETECTED -> SAFE_HOLD` | The 180-second figure is budgeted for containment, not the whole pipeline. Measured with monotonic timestamps; never converted into a fake pass. |
-| Full incident-to-lease run | measured, no promised number | Cold-starting three desktop Sandboxes plus S01–S08 and staged smoke cannot honestly be promised inside 180 seconds. Report the actual duration in the receipt, the dashboard and the video. |
+| Full incident-to-lease run | measured against the §14.4 sub-5-minute target; never promised | Report the real number in the receipt and the video; a miss is reported, not hidden. |
 | Duplicate containment | Before candidate launch | `SAFE_HOLD` write and readback precede any experiment. |
 | World concurrency | peak `>=2`, target `3` | Derived from Modal lifecycle timestamps, not dashboard animation. |
 | Browser evidence cadence | minimum `1 fps`, target `2 fps` per active world | Derived from `BrowserFrame.captured_monotonic_ns`; stale/replayed frames never satisfy it. |
@@ -700,7 +700,7 @@ For A/B/C independently:
 5. bootstrap Xvfb, D-Bus/AT-SPI, window manager and bounded CUA daemon as `nightwatch_controller`, plus candidate FastAPI as `nightwatch_app`, using the explicit privilege drop described in §11.6; deny the app user access to the controller socket/profile/processes/private CDP transport or fail full mode;
 6. create an authenticated Connect Token for port 8080 with non-secret metadata so the trusted API runner can reach the candidate; Chromium inside the world uses loopback;
 7. create the explicit named CUA session; run `browser_prepare`, `get_browser_state` and `semantic_v2(include_screenshot=true)` through the private CDP binding; on readiness/session/ownership failure terminate and return `ERROR_STARTUP`;
-8. run this world's scenarios **serially**: every scenario first resets the app DB from the frozen seed, opens its own provider namespace and takes its own short-lived scenario token, asserts seed/code/fault hashes, then executes. Concurrency is across A/B/C, never within one world, so incompatible stock and money states never share a database. The 1–2 FPS CUA frame sampler runs only during browser scenarios;
+8. run this world's scenarios with **bounded concurrency and per-scenario isolation**: every scenario gets its own app-DB generation file copied from the frozen seed, its own provider namespace and its own short-lived token, and asserts seed/code/fault hashes before executing. UI scenarios stay serial within a world (one Chromium and one CUA session per world is a hard constraint); API scenarios may run in bounded parallel batches because they share no mutable state. Isolation is what replaces serialisation and keeps the run inside the §14.4 budget without letting incompatible stock or money states share a database. The 1–2 FPS CUA frame sampler runs only during browser scenarios;
 9. register `BROWSER_READY` with the trusted control barrier; after all eligible worlds are ready, release one barrier generation so A/B/C begin S02 within a two-second window;
 10. for every browser step, pass the same explicit session to CUA, obtain state/frame, call Jev from the trusted runner, validate the selected ID/session/snapshot freshness, execute through the sandbox CUA socket, publish before/after frames, then independently query app/provider state;
 11. run S01 after S02 in each world, using a new CUA session and temporary Chromium profile plus a fresh app DB reset and provider namespace;
@@ -727,7 +727,7 @@ The dashboard renders these facts. It does not animate three bars without the un
 
 ## 13. Scenario registry and oracle
 
-Every scenario starts from its own reset of the frozen pre-transaction store seed, its own fresh provider namespace, its own short-lived scenario token and a namespace-scoped fault schedule; no two scenarios share a database or a namespace. App database reset occurs only after outstanding requests are stopped and the prior generation is quiescent. Scenarios inside one world run strictly serially — the concurrency the demo shows is across A/B/C worlds.
+Every scenario starts from its own app-DB generation copied from the frozen pre-transaction seed, its own fresh provider namespace, its own short-lived scenario token and a namespace-scoped fault schedule; no two scenarios share a database or a namespace. Copying the seed to a new file is safe while the source is quiescent (SQLite backup API), so scenarios never wait on one another's mutations. UI scenarios run serially within a world because there is exactly one Chromium/CUA session there; API scenarios may run in bounded parallel batches. The concurrency the demo shows is primarily across A/B/C worlds.
 
 | ID | Surface | Exact case | Required outcome | Invariants |
 | --- | --- | --- | --- | --- |
@@ -810,6 +810,29 @@ After staged smoke, issue a 120-minute synthetic-demo lease bound to:
 Expiry, guardian failure, handler/hash mismatch, service restart or Safe Stop changes the live route to `SAFE_HOLD`. It never restores `BUGGY`. The original double capture remains visible for reconciliation; NightWatch claims prevention of additional synthetic harm, not automatic reversal of the first harm.
 
 ---
+
+### 14.4 Runtime budget and the sub-5-minute target
+
+The team target is a **complete incident-to-receipt run under five minutes on warmed infrastructure**. It is measured with monotonic timestamps, reported honestly in the receipt, and never converted into a fake pass if missed. The two-minute figure is the *video*; five minutes is the *run*.
+
+| Stage | Budget | How it stays cheap |
+| --- | --- | --- |
+| Detect → `SAFE_HOLD` + capsule | <10 s | Preauthorized router write plus one CAS transaction. |
+| Bad-release reproduction | 20–30 s | Deterministic API replay of the frozen fault. The live store trigger already produced the UI-visible double capture, so reproduction does not pay for a second CUA journey. |
+| Gemini diagnosis + patch proposal | 10–25 s | Runs in parallel with A/B world startup; C never blocks A/B. |
+| World build + desktop boot (A/B/C) | 30–45 s | Pre-built image, warm services (`min_containers=1`), parallel `map.aio`; C starts as soon as its patch validates. |
+| Scenario suite (all eight, per world) | 60–90 s | Eight scenarios × three worlds; API cases in bounded parallel batches (4–6 at a time) with per-scenario DB files; only S01/S02 use the browser. |
+| Selection | <2 s | Policy lookup over completed evidence sets. |
+| Staged smoke (60 probes) | 30–45 s | Probes are independent synthetic intents and run in bounded batches of 10 instead of sequentially; every probe is still oracle-checked individually. |
+| Lease + readback + receipt | <10 s | One atomic write, one readback, one snapshot commit. |
+
+Rules that make the budget real without weakening evidence:
+
+- **Isolation replaces serialisation.** Serial execution protected shared state; per-scenario DB files, namespaces and tokens achieve identical isolation while allowing bounded parallelism (§12.2, §13).
+- **The browser is the scarce resource, not the protocol.** One CUA session and one Chromium per world means UI scenarios never parallelise inside a world — but they already parallelise across A/B/C through the barrier.
+- **Nothing slow is paid twice.** Reproduction is API-driven; Gemini overlaps world startup; staged smoke for B may begin as soon as B passes, while A and C keep running and only update the receipt without changing an issued lease.
+- **Back-pressure over speed.** If a batch would exceed per-world CPU or the frame-ingest caps, the scheduler lowers batch size rather than dropping oracle checks. A slower truthful run beats a fast unverified one.
+- **Measure, then report.** The receipt carries measured per-stage wall-clock times and the dashboard shows the real elapsed clock. p50/p95 come from rehearsals, never from vendor microbenchmarks.
 
 ## 15. Dashboard and operator experience
 
@@ -1603,3 +1626,4 @@ Recorded so they are never re-litigated mid-build:
 | 6 | Accounts and deploy | **Jazil's workspace; Jazil deploys** | Three environments (`nightwatch-a`, `nightwatch-b`, `nightwatch-demo`); Akshay never runs `modal deploy`. |
 | 7 | Repo handling | **Local commits only** | One hard prerequisite: choose a sync mechanism (private remote, `git bundle`, or shared clone) before the freeze — see §19. |
 | 8 | Start time | **T+0 decided by the team** | The plan is written in relative time; only the 19:00 submission and 20:00 demo are fixed. A late start cuts scope from the back, never compresses gates. |
+| 9 | Runtime | **Sub-5-minute target via bounded concurrency** | Per-scenario DB files replace serialisation; API cases and smoke probes run in bounded batches; UI stays serial per world (§14.4). |
