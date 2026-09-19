@@ -34,6 +34,8 @@ apps/control_plane/static/
 # --- runtime artifacts: receipts, evidence bundles, frames, app databases ---
 artifacts/
 frames/
+# services/frames is Track B source code, not a runtime frame-artifact directory.
+!services/frames/
 evidence/
 *.sqlite
 *.sqlite-wal
