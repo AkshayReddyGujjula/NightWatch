@@ -240,16 +240,32 @@ async def _run_candidate(candidate_id: str, run_id: str) -> int:
         SERVER_URL,
     ]
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    with log_path.open("wb") as log:
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=str(ROOT),
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            creationflags=flags,
-            env={**os.environ, "PYTHONUTF8": "1"},
-        )
-        return await process.wait()
+    for attempt in range(2):
+        with log_path.open("ab" if attempt else "wb") as log:
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                cwd=str(ROOT),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                creationflags=flags,
+                env={**os.environ, "PYTHONUTF8": "1"},
+            )
+            code = await process.wait()
+        if code == 0:
+            return 0
+        candidate = _state.get("candidates", {}).get(candidate_id, {})
+        # Retry only when Modal failed before creating a sandbox. A genuine
+        # CUA/Jev validation failure has a sandbox id and is never overwritten.
+        if attempt or candidate.get("sandbox_id"):
+            return code
+        async with _state_lock:
+            candidate.update(
+                status="RETRYING",
+                jev_action="Transient Modal app-create failure; one bounded retry",
+            )
+            _persist()
+        await asyncio.sleep(6)
+    return 1
 
 
 async def _run_race(run_id: str) -> dict[str, int]:
