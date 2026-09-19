@@ -7,6 +7,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from apps.contracts.base import sha256_hex
+from apps.contracts.browser import BrowserFrame
 from apps.contracts.control import EvaluationResults, IncidentSnapshot, WorldHealth
 from apps.contracts.payment import RouterState
 from apps.control_plane.app import create_app
@@ -157,5 +159,45 @@ def test_openapi_contains_complete_control_route_inventory(tmp_path: Path) -> No
         "/api/incidents/{incident_id}/events",
         "/api/incidents/{incident_id}/receipt",
         "/api/runs/{run_id}/evaluations",
+        "/api/runs/{run_id}/frames/{candidate_id}/latest",
         "/api/worlds/{world_id}/health",
     } <= paths
+
+
+def test_latest_frame_is_authenticated_run_bound_and_conditional(tmp_path: Path) -> None:
+    client, app = make_client(tmp_path, FakeContainment())
+    snapshot = client.post("/api/incidents/NW-FRAME/run", headers=AUTH).json()
+    run_id = snapshot["run_id"]
+    image = b"\xff\xd8\xff\xe0nightwatch-live-frame"
+    frame = BrowserFrame(
+        run_id=run_id,
+        candidate_id="C1",
+        scenario_id="S02",
+        frame_seq=7,
+        sandbox_id="sb-frame-1",
+        cua_session_id="cua-frame-1",
+        snapshot_id="snapshot-frame-1",
+        phase="SAMPLE",
+        captured_monotonic_ns=7_000_000_000,
+        captured_at_utc=datetime.now(UTC),
+        image_sha256=sha256_hex(image),
+        image_size_bytes=len(image),
+        image_mime="image/jpeg",
+    )
+    app.state.frames.accept_frame(frame, image=image)
+    path = f"/api/runs/{run_id}/frames/C1/latest"
+
+    assert client.get(path).status_code == 401
+    assert client.get(f"/api/runs/{run_id}/frames/C2/latest", headers=AUTH).status_code == 404
+
+    response = client.get(path, headers=AUTH)
+    assert response.status_code == 200
+    assert response.content == image
+    assert response.headers["etag"] == frame.image_sha256
+    assert response.headers["x-frame-seq"] == "7"
+    assert response.headers["cache-control"] == "no-store"
+
+    unchanged = client.get(f"{path}?after=7", headers=AUTH)
+    assert unchanged.status_code == 304
+    by_etag = client.get(path, headers={**AUTH, "If-None-Match": frame.image_sha256})
+    assert by_etag.status_code == 304

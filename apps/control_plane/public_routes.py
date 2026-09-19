@@ -6,9 +6,10 @@ import asyncio
 import hmac
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 
+from apps.contracts.base import CandidateId
 from apps.contracts.control import (
     EvaluationResults,
     IncidentSnapshot,
@@ -85,6 +86,7 @@ async def run_incident(incident_id: str, request: Request) -> IncidentSnapshot:
     snapshot, created = _store(request).begin_run(incident_id)
     if not created:
         return snapshot
+    request.app.state.frames.register_run(snapshot.run_id)
     contained = await _contain(request, incident_id)
     if contained.state != "SAFE_HOLD" or not contained.containment_verified:
         return contained
@@ -157,6 +159,40 @@ async def get_evaluations(run_id: str, request: Request) -> EvaluationResults:
         return _store(request).get_evaluations(run_id)
     except KeyError as exc:
         raise _not_found("evaluation results") from exc
+
+
+@router.get(
+    "/runs/{run_id}/frames/{candidate_id}/latest",
+    dependencies=[Depends(require_operator)],
+)
+async def get_latest_frame(
+    run_id: str,
+    candidate_id: CandidateId,
+    request: Request,
+    after: Annotated[int | None, Query(ge=0)] = None,
+    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
+) -> Response:
+    """Return the newest trusted frame bytes without ever crossing run slots."""
+    slot = request.app.state.frames.latest(run_id, candidate_id)
+    if slot is None:
+        raise _not_found("frame")
+    frame, image = slot
+    headers = {
+        "Cache-Control": "no-store",
+        "ETag": frame.image_sha256,
+        "X-Frame-Seq": str(frame.frame_seq),
+    }
+    supplied_etag = (if_none_match or "").strip().removeprefix("W/").strip('"')
+    if supplied_etag == frame.image_sha256 or (
+        after is not None and frame.frame_seq <= after
+    ):
+        return Response(status_code=304, headers=headers)
+    if not image:
+        raise HTTPException(
+            status_code=503,
+            detail="frame metadata exists but image bytes are unavailable",
+        )
+    return Response(content=image, media_type=frame.image_mime, headers=headers)
 
 
 @router.get(

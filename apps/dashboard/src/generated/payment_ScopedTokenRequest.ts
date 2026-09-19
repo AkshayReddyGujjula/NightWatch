@@ -4,7 +4,7 @@
  * @minItems 1
  */
 export type AllowedOperationIds = [string, ...string[]];
-export type CandidateId = "A" | "B" | "C";
+export type CandidateId = string;
 export type ExpiresInSeconds = number;
 export type IncidentId = string;
 export type Namespace = string;

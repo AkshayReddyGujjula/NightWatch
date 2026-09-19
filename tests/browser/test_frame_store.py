@@ -260,9 +260,8 @@ def test_store_is_a_drop_in_replacement_for_the_reference_sink() -> None:
         assert sorted(world["candidate_id"] for world in body["ready"]) == ["A", "B", "C"]
 
     assert store.latest_seq(RUN_ID, "B") == 0
-    # The frozen route validates the image but only forwards metadata to the
-    # sink; in-process callers pass image=... to fill the byte side of the slot.
+    # HTTP ingest forwards the validated image into the bounded byte slot.
     slot = store.latest(RUN_ID, "B")
     assert slot is not None
     assert slot[0].image_sha256 == sha256_hex(HTTP_IMAGE)
-    assert slot[1] == b""
+    assert slot[1] == HTTP_IMAGE

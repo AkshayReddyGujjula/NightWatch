@@ -192,9 +192,16 @@ class CandidateSpec(StrictModel):
         table: dict[str, tuple[str, int]] = {
             "A": ("ROLLBACK", 1),
             "B": ("SAFE_HANDLER", 0),
-            "C": ("GEMINI_PATCH", 2),
         }
-        expected_kind, expected_rank = table[self.candidate_id]
+        if self.candidate_id.startswith("C"):
+            expected_kind, expected_rank = "GEMINI_PATCH", 2
+        else:
+            try:
+                expected_kind, expected_rank = table[self.candidate_id]
+            except KeyError as exc:
+                raise ValueError(
+                    f"candidate {self.candidate_id} is not a supported rollback, safe, or patch id"
+                ) from exc
         if self.kind != expected_kind or self.rank != expected_rank:
             raise ValueError(
                 f"candidate {self.candidate_id} must be {expected_kind} at rank {expected_rank}"

@@ -19,7 +19,8 @@ from apps.control_plane.orchestration import (
 )
 from apps.control_plane.orchestration_store import OrchestrationControlStore
 from apps.control_plane.public_routes import router as public_router
-from apps.control_plane.routes import DEFAULT_BARRIER_TIMEOUT_SECONDS, ReferenceSink, router
+from apps.control_plane.routes import DEFAULT_BARRIER_TIMEOUT_SECONDS, router
+from services.frames.store import FrameStore
 
 
 def create_app(
@@ -34,7 +35,7 @@ def create_app(
     resolved = settings or ControlSettings()
     app = FastAPI(title="NightWatch control plane", version="0.1.0", lifespan=lifespan)
     app.state.settings = resolved
-    app.state.frames = ReferenceSink(timeout_seconds=barrier_timeout_seconds)
+    app.state.frames = FrameStore(timeout_seconds=barrier_timeout_seconds)
     path = db_path if db_path is not None else (resolved.control_db_path or ":memory:")
     app.state.control_store = OrchestrationControlStore(path)
     app.state.containment = containment or HttpContainmentControl(

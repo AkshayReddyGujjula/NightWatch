@@ -3,11 +3,9 @@
   "description": "Response body of ``POST /internal/frames``.",
   "properties": {
     "candidate_id": {
-      "enum": [
-        "A",
-        "B",
-        "C"
-      ],
+      "maxLength": 8,
+      "minLength": 1,
+      "pattern": "^[A-Z][A-Z0-9]{0,7}$",
       "title": "Candidate Id",
       "type": "string"
     },

@@ -39,7 +39,10 @@ __all__ = [
     "sha256_hex",
 ]
 
-CandidateId = Literal["A", "B", "C"]
+CandidateId = Annotated[
+    str,
+    StringConstraints(pattern=r"^[A-Z][A-Z0-9]{0,7}$", min_length=1, max_length=8),
+]
 
 ScenarioId = Literal["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08"]
 

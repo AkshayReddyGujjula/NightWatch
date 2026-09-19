@@ -120,7 +120,7 @@ class ReferenceSink:
 
     # -- frames --------------------------------------------------------------
 
-    def accept_frame(self, frame: BrowserFrame) -> FrameIngestAck:
+    def accept_frame(self, frame: BrowserFrame, image: bytes | None = None) -> FrameIngestAck:
         state = self.runs.get(frame.run_id)
         if state is None:
             raise UnknownRunError(frame.run_id)
@@ -255,7 +255,7 @@ async def ingest_frame(
 
     sink: ReferenceSink = request.app.state.frames
     try:
-        return sink.accept_frame(frame)
+        return sink.accept_frame(frame, image=bytes(payload))
     except UnknownRunError as exc:
         raise HTTPException(status_code=404, detail="unknown run") from exc
     except SequenceRegressionError as exc:

@@ -303,7 +303,7 @@ class Oracle:
             status = "PASS"
             failure_reason = None
         return ScenarioResult(
-            candidate_id=evidence.candidate_id,  # type: ignore[arg-type]
+            candidate_id=evidence.candidate_id,
             scenario_id=evidence.scenario.scenario_id,
             status=status,
             started_at_utc=started_at,
