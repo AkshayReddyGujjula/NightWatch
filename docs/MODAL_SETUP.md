@@ -161,8 +161,13 @@ def hello() -> str:
 @app.local_entrypoint()
 def main() -> None:
     print(hello.remote())
-    with modal.Sandbox.create(app=app, image=modal.Image.debian_slim()) as sb:
-        print(sb.exec("bash", "-lc", "echo sandbox ok").stdout.read().decode().strip())
+    # Modal 1.5.5: Sandbox has no context-manager support and stdout.read()
+    # returns str; terminate explicitly.
+    sb = modal.Sandbox.create(app=app, image=modal.Image.debian_slim())
+    try:
+        print(sb.exec("bash", "-lc", "echo sandbox ok").stdout.read().strip())
+    finally:
+        sb.terminate()
 PY
 
 modal run /tmp/nw_smoke.py
