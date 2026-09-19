@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from apps.contracts.payment import IntentItem
+from apps.live_store.router import Router
 from apps.live_store.store import Store
 
 
@@ -34,3 +35,18 @@ def test_mark_paid_cannot_resurrect_quarantined_or_refunded_order() -> None:
     store2.set_order_status(order2, "REFUNDED_FULL")
     assert store2.mark_paid(order2, operation2, "SKU-A", 1) is False
     assert store2.get_order(order2).status == "REFUNDED_FULL"
+
+
+def test_reset_live_clears_the_buggy_latch_for_the_next_rehearsal() -> None:
+    store = Store()
+    router = Router(store)
+    router.set_mode("BUGGY", expected_generation=store.router_state().generation)
+    router.set_mode("SAFE_HOLD", expected_generation=store.router_state().generation)
+    assert store.buggy_locked() is True
+
+    store.reset_live()
+    assert store.buggy_locked() is False
+    assert store.router_state().mode == "SAFE_HOLD"
+
+    router.set_mode("BUGGY", expected_generation=store.router_state().generation)
+    assert store.router_state().mode == "BUGGY"

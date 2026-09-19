@@ -8,7 +8,7 @@ only outbound credential is its scoped provider token; internal endpoints use
 from __future__ import annotations
 
 import hmac
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -170,6 +170,20 @@ async def read_router(
     return request.app.state.router.state()
 
 
+@router.post("/internal/reset", response_model=RouterState)
+async def reset_live_store(
+    request: Request,
+    _: Annotated[None, Depends(require_live_internal)],
+) -> RouterState:
+    """Trusted rehearsal reset: fresh seed, SAFE_HOLD, BUGGY latch cleared.
+
+    Ledger history and the original namespace are untouched; this only resets
+    the router so the operator can arm the next rehearsal's incident.
+    """
+    request.app.state.store.reset_live()
+    return request.app.state.router.state()
+
+
 @router.put("/internal/router", response_model=RouterState)
 async def update_router(
     body: RouterUpdateRequest,
@@ -205,10 +219,11 @@ def create_app(
     *,
     db_path: str | None = None,
     provider: object | None = None,
+    lifespan: Any = None,
 ) -> FastAPI:
     resolved = settings or StoreSettings()
     path = db_path if db_path is not None else (resolved.store_db_path or ":memory:")
-    app = FastAPI(title="NightWatch live store", version="0.1.0")
+    app = FastAPI(title="NightWatch live store", version="0.1.0", lifespan=lifespan)
     app.state.settings = resolved
     store = Store(path)
     app.state.store = store

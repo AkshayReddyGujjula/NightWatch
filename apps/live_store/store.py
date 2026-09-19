@@ -470,6 +470,25 @@ class Store:
         ).fetchone()
         return bool(row["buggy_locked"])
 
+    def reset_live(self) -> None:
+        """Trusted rehearsal reset (live-internal auth, plan §9.1 reset-demo).
+
+        Creates a fresh bucket seed, returns to SAFE_HOLD and clears the BUGGY
+        latch so the operator can arm the next rehearsal *before* its incident.
+        Ledger history is untouched; the original namespace stays immutable.
+        """
+        with self._lock, self._conn:
+            self._conn.execute(
+                """
+                UPDATE router_state
+                SET mode = 'SAFE_HOLD', generation = generation + 1, handler_hash = ?,
+                    rollout_pct = 0, bucket_seed = ?, lease_id = NULL,
+                    lease_expires_at = NULL, buggy_locked = 0, updated_at = ?
+                WHERE singleton = 1
+                """,
+                (SAFE_HOLD_HANDLER_HASH, uuid.uuid4().hex, _now()),
+            )
+
     def set_router(
         self,
         *,

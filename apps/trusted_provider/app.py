@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hmac
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, Response
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -242,10 +242,15 @@ async def health_alive() -> dict[str, str]:
     return {"status": "ok", "service": "trusted_provider"}
 
 
-def create_app(settings: ProviderSettings | None = None, *, db_path: str | None = None) -> FastAPI:
+def create_app(
+    settings: ProviderSettings | None = None,
+    *,
+    db_path: str | None = None,
+    lifespan: Any = None,
+) -> FastAPI:
     resolved = settings or ProviderSettings()
     path = db_path if db_path is not None else (resolved.provider_db_path or ":memory:")
-    app = FastAPI(title="NightWatch trusted provider", version="0.1.0")
+    app = FastAPI(title="NightWatch trusted provider", version="0.1.0", lifespan=lifespan)
     app.state.settings = resolved
     ledger = LedgerStore(path)
     app.state.ledger = ledger
