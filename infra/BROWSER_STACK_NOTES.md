@@ -66,3 +66,18 @@ explicitly degraded.
 
 `uv run modal run scripts/verify_browser_stack.py` (nightwatch-b) prints the
 full evidence JSON and writes `artifacts/browser_gate_<ts>.json`.
+
+## Final probe results (19 Sep, ~13:40)
+
+- `browser_prepare` **silently ignores** undocumented `url` / `start_url` fields:
+  the isolated browser still lands on `about:blank` (bound_title/bound_url
+  recorded in the probe).
+- Under an origins-scoped manifest the refusal also hits **observation**: a
+  `semantic_v2` snapshot from the blank page fails with
+  `authorization_host_failed: confirmation provider failed: the live browser
+  origin is outside the capability manifest`.
+- Conclusion: with CUA Driver 0.28.2, an origin-scoped bounded world cannot use
+  a driver-owned isolated browser at all, and the existing-profile attach proof
+  fails against a live, PID-owned endpoint. Browser scenarios are declared
+  `ERROR_BROWSER_STACK` (reduced mode) until a driver fix or version change.
+  No substitute browser controller (ADR-007).

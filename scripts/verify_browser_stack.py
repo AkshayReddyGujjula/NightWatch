@@ -21,6 +21,12 @@ gate fixture backend. The real candidate app and backend are Track A's
 `apps/live_store/**`; this gate proves the browser stack, not payment logic.
 
 Run:  MODAL_ENVIRONMENT=nightwatch-b uv run modal run scripts/verify_browser_stack.py
+
+STATUS (19 Sep, ~13:40): the gate is NOT green on CUA Driver 0.28.2 — two
+driver-side blockers are recorded in infra/BROWSER_STACK_NOTES.md (typed
+navigate/snapshot refused from a fresh about:blank page under an origin-scoped
+manifest; existing-profile attach fails its endpoint proof against a live,
+PID-owned endpoint). This script remains the reproducible evidence runner.
 """
 
 from __future__ import annotations
