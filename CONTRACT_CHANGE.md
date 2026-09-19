@@ -40,6 +40,74 @@ without blocking A/B.
 
 **Impact on Track B:** none — no Track B code consumes these fields.
 
+## 2026-09-19 — Track B: `CandidateId` must admit `C1..CN` for the 5–6 world race (request)
+
+**By:** Track B (Akshay) · **Status:** request · **Wire impact:** frozen type widens; no route change
+
+Plan §12.1 explicitly requires raising `max_containers` when extra worlds are
+added, and the Track B checkpoint asks for a 5–6 world `map.aio` race. The frozen
+contracts currently block it: `apps/contracts/base.py` defines
+`CandidateId = Literal["A", "B", "C"]` and `CandidateSpec`'s validator
+(`apps/contracts/incident.py`) indexes a fixed table by `candidate_id`, so any
+`C1..CN` id raises before a world can be created. Track B request:
+
+1. widen `CandidateId` to a bounded pattern such as `^[A-Z][A-Z0-9]{0,7}$`;
+2. in the validator, map `A`/`B` exactly as today and treat any `C`-prefixed id
+   (`C`, `C1`, …, `CN`) as `GEMINI_PATCH` at rank 2 — rank semantics are
+   unchanged, the suffix only names a distinct patch;
+3. expected-candidate sets therefore derive from the actual spec ids (the
+   barrier `expect()` already takes a candidate list, so no route change).
+
+Until this is accepted, Track B's six-world scale proof uses two waves of the
+three frozen slots (`A`, `B`, `C`) with distinct provider namespaces and records
+that limitation honestly; the runner, isolation and overlap evidence are real
+either way. Track B makes no claim about racing six distinct candidate ids until
+the contract admits them. No Track B code edits a contract file.
+
+## 2026-09-19 — Track B: frame-store swap + frame-bytes read route (integration request)
+
+**By:** Track B (Akshay) · **Status:** request · **Wire impact:** one additive public route needed
+
+Two integration points only the control-plane owner can complete. Track B has
+implemented its side; no Track A code is edited by Track B.
+
+1. **Sink swap (no wire change).** `apps/control_plane/app.py` currently sets
+   `app.state.frames = ReferenceSink(...)`. Track B's drop-in replacement is
+   `services.frames.store.FrameStore`; it preserves the exact sink surface and
+   error classes (`UnknownRunError`, `SequenceRegressionError`,
+   `ReadySetMismatchError`, `SessionHashMismatchError` imported from
+   `apps.control_plane.routes`), so the existing route status mapping is
+   unchanged. It additionally keeps one latest frame (metadata + bytes) per
+   `(run_id, candidate_id)` in memory and fans out metadata to bounded
+   subscribers. Track B has an end-to-end test that assigns
+   `app.state.frames = FrameStore(...)` and posts real multipart frames through
+   the frozen `/internal/frames` route; the existing
+   `tests/integration/test_internal_frames_contract.py` is unchanged and must
+   stay green with the swap.
+   Requested wiring: `create_app` constructs `FrameStore(timeout_seconds=barrier_timeout_seconds)`
+   (Track A's call, Track B takes the edit if you prefer). **One-line route
+   change required for the wall:** `FrameStore.accept_frame(frame, image=None)`
+   accepts the validated bytes, but `ingest_frame` currently calls
+   `sink.accept_frame(frame)` after validation, so HTTP-ingested frames would
+   hold an empty image slot. Pass `image=bytes(payload)` at that call and the
+   bytes flow to the frame-bytes route without any other change.
+
+2. **Frame-bytes read route for the dashboard wall (additive).** The wall needs
+   the plan §11.7 route `GET /api/runs/{run_id}/frames/{candidate_id}/latest?after={seq}`
+   returning `image/jpeg` (or `image/webp`) bytes with `Cache-Control: no-store`
+   and operator bearer auth like the other `/api` reads. Statuses: `200` bytes
+   plus an `X-Frame-Seq: <frame_seq>` response header; `404` when no frame exists
+   for that `(run, candidate)`; `409` (or `204`) when `after` is not older than
+   the latest seq — please prefer `409`/`204` over `404` there so the wall never
+   confuses "no frame" with "nothing newer". Requested header name is
+   `X-Frame-Seq`; if the contract prefers another name, say so and Track B
+   changes only `routes.ts` + `src/api/frames.ts`. The bytes come from the same
+   `app.state.frames` store (`latest(run_id, candidate_id, after_seq)`), never
+   from the runner and never from SQLite. Until both (1) and (2) land — the swap
+   *and* the byte-forward — the committed bytes slot is empty and the wall stays
+   in its labelled `no committed frame source yet` state; the submission makes no
+   claim about live frames in the committed control plane before then.
+
 ## 2026-09-19 — Track A reply: freeze decisions accepted; unsigned barrier release recorded
 
 **By:** Track A (Jazil) · **Status:** recorded · **Wire impact:** none

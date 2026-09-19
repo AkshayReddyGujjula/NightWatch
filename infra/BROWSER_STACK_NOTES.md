@@ -3,6 +3,17 @@
 Evidence log for plan §11.8. Keep this current: the receipt and README must
 reflect exactly what is proven here.
 
+> **STATUS 19 Sep ~17:10 — SUPERSEDES every earlier "blocked" verdict below.**
+> The typed journey **is green** on the driver-launched isolated browser:
+> `browser_prepare {"allow_launch": true, "profile": {"mode": "isolated_new"}}`
+> → `prepared: true`, `endpoint_ownership: spawned_by_driver`; exact binding;
+> `semantic_v2` snapshots; one live TypeSafe Jev action executed with a verified
+> fresh-snapshot postcondition. Two limitations are recorded and claimed:
+> (1) a single raw CDP `Page.navigate` first hop is required because the
+> origin-scoped manifest refuses observation from `about:blank`; (2)
+> `<input type="email">` writes never reach the renderer (`browser_type`
+> `effect: refused`) while the `<textarea>` write lands. See the final section.
+
 ## What is proven working (real sandbox evidence, `nightwatch-b`)
 
 - Pinned desktop image builds and boots: `im-bpk70bsExDFHWQbm5FoUvh` lineage;
@@ -107,3 +118,80 @@ reference a browser journey.
 Card 4 — first navigation through the driver-owned loopback CDP endpoint directly
 (bypassing the typed surface) — is **untested and was not attempted**; it is out of
 scope unless explicitly reopened after the core demo is rehearsing.
+
+## Final outcome (19 Sep ~17:10) — typed journey green on the isolated route
+
+### What unblocked it (all raw JSON in `artifacts/browser_*.json`)
+
+1. `browser_prepare` accepts exactly one strategy kind, `existing_profile`
+   (`strategy.kind: "isolated"` → `unknown variant 'isolated', expected
+   'existing_profile'`). The driver-owned isolated browser is a **profile mode**:
+   `{"allow_launch": true, "profile": {"mode": "isolated_new"}}`
+   → `{"action": "launched_isolated_browser", "prepared": true,
+   "endpoint_ownership": {"method": "spawned_by_driver", "owner_pid": <pid>,
+   "detail": "driver-owned profile port file plus live loopback socket owner"}}`
+   with every `side_effects` false except `created_profile` / `launched_browser`.
+2. Route A (controller-owned Chrome with a launch-declared DevTools endpoint) is
+   fully characterised and **refused** for the bounded `existing_profile` path:
+   with `--remote-debugging-port=0` the endpoint is live and PID-owned
+   (`LISTEN 0 0 127.0.0.1:31176 users:(("chrome",pid=141,fd=80))`,
+   `DevToolsActivePort` written), yet the driver always runs its own setup
+   action first and then fails its own proof (`browser_requires_setup`,
+   "did not expose a uniquely PID-owned loopback endpoint after the exact setup
+   action"). With a fixed `--remote-debugging-port=9222` Chrome wrote **no**
+   `DevToolsActivePort`. No driver-version change was attempted.
+3. Observation and typed navigation from a fresh `about:blank` page remain
+   refused under the origin-scoped manifest. **One recorded deviation**: exactly
+   one raw CDP `Page.navigate` to `http://127.0.0.1:8080/…` per world, executed
+   inside the sandbox by a stdlib-only RFC 6455 client (httpx has no WebSocket
+   support and nothing was installed). Every observation and every later action
+   goes through the typed bounded tools only.
+4. Refs are snapshot-scoped: the action executes on exactly the observation Jev
+   judged (no intervening snapshot), and the postcondition comes from the next
+   FRESH snapshot matched by role+name.
+5. `browser_type` / `browser_click` require the exact `target_id` and `tab_id`;
+   without them the driver refuses with `protected_resource_scope_invalid`
+   ("the browser operation requires an exact target_id").
+
+### Green evidence (one bounded Sandbox, `artifacts/browser_launch_1789828401.json`)
+
+- Sandbox `sb-CkQb2ZlPLiMlzKbD7JJXIZ`, image `im-PufC2iis5NTiGNFR00dxze`,
+  bootstrap 14.9 s, clean teardown.
+- Binding `binding_quality: exact`, `mutation_allowed: true`; target/tab ids
+  minted; page URL on the allowed origin after the recorded hop.
+- `semantic_v2` snapshot: 7 refs — Email textbox, Delivery address textbox,
+  Promo code textbox, Pay now button (`actions: ["click","pointer"]`).
+- Task 1 screenshot `task1-probe.png`: sha256 `023c9caa…c8921`, 39,489 bytes,
+  copied out and visually inspected (real NightMart checkout page).
+- Task 2 (live `jev-1.13.0`, confidence + raw probabilities recorded per step):
+  `fill_address` executed through `browser_type` and **verified from the next
+  fresh snapshot** (`value == "1 Demo Street, London"`), screenshot
+  `jev-02-after.png` sha256 `89d8b9d7…6e20a3`, 42,169 bytes, visually confirmed.
+  One earlier run also recorded `fill_email` executions and an abstention
+  (`abstain`, confidence 0.65) when the value did not land.
+- 9 screenshots captured in the atom runs, 5 distinct hashes.
+
+### Recorded limitations (do not overclaim)
+
+- **Email input**: `browser_type` on `<input type="email">` returns
+  `{"effect": "refused", "escalation": {"reason": "route_unavailable",
+  "target": "page"}, "route": "trusted_input"}` for `replace: true`, no-`replace`,
+  `input_route: dom_event` and click-then-type; the value never appears in the
+  next snapshot. The `<textarea>` write on the same page works. Because the
+  checkout page requires both email and address, **no checkout was completed and
+  no payment claim is made**. `execute_javascript` is not in the manifest and was
+  not used.
+- The CDP first hop is a deviation from the pure-typed path; it navigates to an
+  already-allowed origin only.
+- The controller-owned browser (Route A) is still unusable for typed journeys;
+  candidate worlds that need a browser must use the driver-launched isolated
+  profile and the runner must perform the recorded hop.
+
+### Reproduce
+
+- `uv run modal run -e nightwatch-b scripts/probe_browser_launch.py` — Route X,
+  binding, hop, typed snapshot, Jev atom (green)
+- `uv run modal run -e nightwatch-b scripts/probe_browser_type.py` — email type
+  variants and the click probe
+- `uv run modal run -e nightwatch-b scripts/probe_browser_journey.py` — Route A
+  endpoint diagnosis (red)

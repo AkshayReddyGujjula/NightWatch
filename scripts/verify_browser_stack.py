@@ -22,11 +22,18 @@ gate fixture backend. The real candidate app and backend are Track A's
 
 Run:  MODAL_ENVIRONMENT=nightwatch-b uv run modal run scripts/verify_browser_stack.py
 
-STATUS (19 Sep, ~13:40): the gate is NOT green on CUA Driver 0.28.2 — two
-driver-side blockers are recorded in infra/BROWSER_STACK_NOTES.md (typed
-navigate/snapshot refused from a fresh about:blank page under an origin-scoped
-manifest; existing-profile attach fails its endpoint proof against a live,
-PID-owned endpoint). This script remains the reproducible evidence runner.
+STATUS (19 Sep, ~17:10): this runner exercises the **Route A** shape
+(controller-owned Chrome with a launch-declared DevTools endpoint) and records
+its refusal exactly. Route A does not reach a typed journey on driver 0.28.2;
+the green evidence runners are:
+
+* `scripts/probe_browser_launch.py` — `allow_launch` + `profile.mode=isolated_new`,
+  binding, the single recorded CDP first hop, typed `semantic_v2` snapshot and a
+  live Jev action with a verified fresh-snapshot postcondition;
+* `scripts/probe_browser_type.py` — `browser_type` route variants and the click
+  probe.
+
+Full outcome, limitations and artifact paths: `infra/BROWSER_STACK_NOTES.md`.
 """
 
 from __future__ import annotations
@@ -536,6 +543,165 @@ def sample_frames(
     }
 
 
+def _pick(payload: Any, key: str) -> Any:
+    """Read a key from a driver response, accepting one level of nesting."""
+    if not isinstance(payload, dict):
+        return None
+    if key in payload:
+        return payload[key]
+    for value in payload.values():
+        if isinstance(value, dict) and key in value:
+            return value[key]
+    return None
+
+
+def _no_side_effects(value: Any) -> bool:
+    """True when the driver reports no setup side effects at all (plan Route A)."""
+    if isinstance(value, dict):
+        return bool(value) and all(item is False for item in value.values())
+    if isinstance(value, list):
+        return not value
+    return False
+
+
+def _first_string(payload: Any, keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value = _pick(payload, key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _elements(snapshot: Any) -> list[dict[str, Any]]:
+    if not isinstance(snapshot, dict):
+        return []
+    for key in ("elements", "controls", "regions"):
+        value = snapshot.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def frame_record(sandbox: modal.Sandbox, path: str, at_ns: int) -> dict[str, Any]:
+    """Hash and size one screenshot file exactly as written inside the sandbox."""
+    record: dict[str, Any] = {"at_ns": at_ns, "path": path}
+    code, stdout, _ = _exec(sandbox, "sha256sum", path, timeout=30)
+    if code == 0 and stdout.strip():
+        record["sha256"] = stdout.split()[0]
+    code, stdout, _ = _exec(sandbox, "stat", "-c", "%s", path, timeout=30)
+    if code == 0 and stdout.strip():
+        record["size"] = int(stdout.strip())
+    return record
+
+
+def capture_frame(
+    sandbox: modal.Sandbox,
+    driver: CuaDriver,
+    target_id: str,
+    tab_id: str,
+    session: str,
+    path: str,
+) -> dict[str, Any]:
+    """One semantic_v2 observation with a screenshot; hash the written bytes."""
+    at_ns = time.monotonic_ns()
+    result = driver.probe(
+        "get_browser_state",
+        {
+            "target_id": target_id,
+            "tab_id": tab_id,
+            "snapshot_format": "semantic_v2",
+            "include_screenshot": True,
+        },
+        session=session,
+        screenshot_out=path,
+    )
+    record = frame_record(sandbox, path, at_ns)
+    record["ok"] = result["ok"]
+    if result["ok"]:
+        data = result["data"]
+        for key in ("capture_id", "snapshot_id", "screenshot_id"):
+            if key in data:
+                record[key] = data[key]
+    return record
+
+
+def endpoint_evidence(sandbox: modal.Sandbox, chrome_pid: int) -> dict[str, Any]:
+    """Record the exact PID-owned loopback endpoint the driver is attaching to."""
+    profile = "/run/nightwatch/chrome-profile"
+    evidence: dict[str, Any] = {}
+    code, text, _ = _exec(sandbox, "cat", f"{profile}/DevToolsActivePort", timeout=20)
+    active_port = text.strip() if code == 0 else None
+    evidence["devtools_active_port_file"] = active_port
+    port = active_port.splitlines()[0].strip() if active_port else None
+    code, text, _ = _exec(sandbox, "cat", "/run/nightwatch/browser.json", timeout=20)
+    if code == 0:
+        try:
+            evidence["browser_json"] = json.loads(text)
+        except ValueError:
+            evidence["browser_json_raw"] = text[:400]
+    code, text, _ = _exec(sandbox, "cat", f"/proc/{chrome_pid}/cmdline", timeout=20)
+    if code == 0:
+        evidence["browser_cmdline"] = text.replace("\x00", " ").strip()
+    code, text, _ = _exec(sandbox, "ss", "-ltnp", timeout=20)
+    if code == 0:
+        lines = [
+            line.strip()
+            for line in text.splitlines()
+            if f"pid={chrome_pid}" in line or (port is not None and f":{port} " in line + " ")
+        ]
+        evidence["ss_listen_lines"] = lines[:8]
+    return evidence
+
+
+def _low_margin(confidence: float, probabilities: Any) -> bool:
+    """Event-day default low-margin rule (CALIBRATION.md): no fixed threshold yet.
+
+    A decision is low margin when confidence is below 0.5 or when the winning
+    and runner-up probabilities are within 0.15 of each other. Behaviour on a
+    low-margin concrete action is reobserve once, then abstain.
+    """
+    if confidence < 0.5:
+        return True
+    if isinstance(probabilities, dict) and len(probabilities) >= 2:
+        values = sorted(
+            (float(value) for value in probabilities.values() if isinstance(value, int | float)),
+            reverse=True,
+        )
+        if len(values) >= 2 and values[0] - values[1] < 0.15:
+            return True
+    return False
+
+
+def _postcondition(
+    choice: str, selected_candidate: dict[str, Any], snapshot: dict[str, Any]
+) -> dict[str, Any]:
+    """Post-action element/url state from a fresh snapshot (never the model's word)."""
+    ref = next(
+        (
+            item
+            for item in _refs(snapshot)
+            if item.get("ref") == selected_candidate.get("ref")
+        ),
+        None,
+    )
+    if choice == "fill_email":
+        value = (ref or {}).get("value")
+        return {
+            "kind": "element_state",
+            "ref": selected_candidate.get("ref"),
+            "value": value,
+            "verified": value == _FIXTURE_EMAIL,
+        }
+    if choice == "pay_now":
+        return {
+            "kind": "server_state_pending",
+            "url": _first_string(snapshot, ("url", "bound_url", "native_url")),
+            "status_text": _pick(snapshot, "status_text"),
+            "verified": False,
+        }
+    return {"kind": "none", "verified": False}
+
+
 @app.local_entrypoint()
 def main() -> None:
     evidence: dict[str, Any] = {
@@ -681,7 +847,59 @@ def main() -> None:
                     continue
                 raise
         evidence["prepare"] = prepared
+        side_effects = _pick(prepared, "side_effects")
+        endpoint_ownership = _pick(prepared, "endpoint_ownership")
+        prepared_flag = _pick(prepared, "prepared")
+        evidence["prepare_endpoint_ownership"] = endpoint_ownership
+        evidence["prepare_side_effects"] = side_effects
+        evidence["verdict"]["route_a_prepare"] = bool(
+            prepared_flag is True
+            and endpoint_ownership
+            and _no_side_effects(side_effects)
+        )
+        # Route A evidence: the endpoint Chrome published at launch, its owner
+        # cmdline and the listener line — no side effect was needed to reach it.
+        evidence["endpoint"] = endpoint_evidence(sandbox, chrome_pid)
         evidence["verdict"]["x11_atspi_cua_ready"] = True
+
+        # --- Task 1: semantic_v2 state on the allowed origin ------------------
+        task1_at_ns = time.monotonic_ns()
+        semantic = driver.call(
+            "get_browser_state",
+            {
+                "pid": chrome_pid,
+                "window_id": window_id,
+                "snapshot_format": "semantic_v2",
+                "include_screenshot": True,
+            },
+            session=session,
+            screenshot_out="/run/nightwatch/frames/task1-probe.png",
+        )
+        evidence["task1_semantic_state"] = semantic
+        evidence["task1_frame"] = frame_record(
+            sandbox, "/run/nightwatch/frames/task1-probe.png", task1_at_ns
+        )
+        semantic_url = _first_string(
+            semantic, ("url", "bound_url", "native_url", "current_url", "document_url")
+        )
+        semantic_binding = _pick(semantic, "binding_quality")
+        semantic_mutation = _pick(semantic, "mutation_allowed")
+        element_count = max(len(_refs(semantic)), len(_elements(semantic)))
+        evidence["task1_summary"] = {
+            "url": semantic_url,
+            "binding_quality": semantic_binding,
+            "mutation_allowed": semantic_mutation,
+            "element_count": element_count,
+            "snapshot_id": _pick(semantic, "snapshot_id"),
+            "capture_id": _pick(semantic, "capture_id"),
+        }
+        evidence["verdict"]["route_a_semantic"] = bool(
+            semantic_binding == "exact"
+            and semantic_mutation is True
+            and isinstance(semantic_url, str)
+            and semantic_url.startswith("http://127.0.0.1:8080")
+            and element_count > 0
+        )
 
         bound = driver.call(
             "get_browser_state",
@@ -753,7 +971,8 @@ def main() -> None:
         )
         completed: list[str] = []
         actions: list[dict[str, Any]] = []
-        for step in range(1, 5):
+        low_margin_retries = 0
+        for step in range(1, 6):
             snapshot = driver.call(
                 "get_browser_state",
                 {
@@ -769,43 +988,101 @@ def main() -> None:
                 json.dumps(observation, sort_keys=True).encode()
             ).hexdigest()
             decision = jev_choose(goal, observation, candidates)
-            choice = str(decision["answer"].get("choice"))
-            evidence.setdefault("decisions", []).append(
-                {
-                    "step": step,
-                    "observation_hash": observation_hash,
-                    "offered": list(candidates),
-                    "decision": decision,
-                }
-            )
+            answer = decision.get("answer") if isinstance(decision.get("answer"), dict) else {}
+            choice = str(answer.get("choice"))
+            confidence = float(answer.get("confidence") or 0.0)
+            probabilities = answer.get("probabilities")
+            low_margin = _low_margin(confidence, probabilities)
+            decision_record = {
+                "step": step,
+                "observation_hash": observation_hash,
+                "offered": list(candidates),
+                "decision": decision,
+                "confidence": confidence,
+                "probabilities": probabilities,
+                "model_name": decision.get("response_model"),
+                "low_margin": low_margin,
+            }
+            evidence.setdefault("decisions", []).append(decision_record)
             if choice not in candidates:
                 raise GateError(f"Jev chose an unoffered candidate: {choice!r}")
             selected_candidate = candidates[choice]
             if choice == "abstain":
+                decision_record["executed"] = False
                 evidence["verdict"]["jev_abstained"] = True
                 break
             if choice == "reobserve":
+                decision_record["executed"] = False
                 continue
+            if low_margin:
+                # §11.3 / CALIBRATION.md: low margin -> reobserve once -> abstain.
+                low_margin_retries += 1
+                decision_record["executed"] = False
+                if low_margin_retries > 1:
+                    decision_record["action"] = "abstain_after_low_margin_retry"
+                    evidence["verdict"]["jev_abstained"] = True
+                    break
+                decision_record["action"] = "reobserve_once"
+                continue
+            low_margin_retries = 0
 
+            before_path = f"/run/nightwatch/frames/jev-{step:02d}-before.png"
+            before_at_ns = time.monotonic_ns()
             fresh = driver.call(
                 "get_browser_state",
                 {
                     "target_id": target_id,
                     "tab_id": tab_id,
                     "snapshot_format": "semantic_v2",
+                    "include_screenshot": True,
                 },
                 session=session,
+                screenshot_out=before_path,
             )
             if not ref_present(fresh, str(selected_candidate["ref"])):
-                actions.append({"step": step, "candidate": choice, "executed": False,
-                                "reason": "stale_ref"})
+                decision_record["executed"] = False
+                decision_record["action"] = "stale_ref"
+                actions.append(
+                    {
+                        "step": step,
+                        "candidate": choice,
+                        "executed": False,
+                        "reason": "stale_ref",
+                        "before_frame": frame_record(sandbox, before_path, before_at_ns),
+                    }
+                )
                 continue
             driver.call(
                 str(selected_candidate["tool"]),
                 dict(selected_candidate["args"]),
                 session=session,
             )
-            actions.append({"step": step, "candidate": choice, "executed": True})
+            after_path = f"/run/nightwatch/frames/jev-{step:02d}-after.png"
+            after_at_ns = time.monotonic_ns()
+            after = driver.call(
+                "get_browser_state",
+                {
+                    "target_id": target_id,
+                    "tab_id": tab_id,
+                    "snapshot_format": "semantic_v2",
+                    "include_screenshot": True,
+                },
+                session=session,
+                screenshot_out=after_path,
+            )
+            decision_record["executed"] = True
+            actions.append(
+                {
+                    "step": step,
+                    "candidate": choice,
+                    "executed": True,
+                    "confidence": confidence,
+                    "probabilities": probabilities,
+                    "before_frame": frame_record(sandbox, before_path, before_at_ns),
+                    "after_frame": frame_record(sandbox, after_path, after_at_ns),
+                    "postcondition": _postcondition(choice, selected_candidate, after),
+                }
+            )
             completed.append(choice)
             if choice == "pay_now":
                 break
@@ -828,6 +1105,14 @@ def main() -> None:
             "email_matches_fixture": postcondition_ok,
         }
         evidence["verdict"]["postcondition_verified"] = postcondition_ok
+        if postcondition_ok:
+            for action in actions:
+                if action.get("candidate") == "pay_now" and action.get("executed"):
+                    action["postcondition"]["verified"] = True
+                    action["postcondition"]["server_state"] = {
+                        "checkout_posts": server_state.get("checkout_posts"),
+                        "email_matches_fixture": True,
+                    }
 
         # --- 6. frame-rate window --------------------------------------------
         frames = sample_frames(sandbox, driver, target_id, tab_id, session)
@@ -836,6 +1121,29 @@ def main() -> None:
             frames["count"] >= 5
             and frames["frame1_to_frame5_s"] is not None
             and frames["frame1_to_frame5_s"] <= 5.0
+        )
+
+        # --- 6b. screenshot inventory (Task 1 + Task 2 evidence) --------------
+        inventory: list[dict[str, Any]] = [evidence["task1_frame"]]
+        for action in actions:
+            for key in ("before_frame", "after_frame"):
+                frame = action.get(key)
+                if isinstance(frame, dict):
+                    inventory.append(frame)
+        inventory.extend(
+            {k: value for k, value in frame.items() if k in ("seq", "at_ns", "sha256", "size")}
+            for frame in frames["frames"]
+        )
+        hashes = [
+            str(frame["sha256"]) for frame in inventory if frame.get("sha256") is not None
+        ]
+        evidence["screenshot_inventory"] = {
+            "count": len(inventory),
+            "distinct_sha256": len(set(hashes)),
+            "inventory": inventory,
+        }
+        evidence["verdict"]["screenshots_present"] = (
+            len(set(hashes)) >= 3 and len(inventory) >= 3
         )
 
         # --- 7. end session ---------------------------------------------------
@@ -856,10 +1164,13 @@ def main() -> None:
 
     passed = (
         evidence.get("verdict", {}).get("x11_atspi_cua_ready", False)
+        and evidence.get("verdict", {}).get("route_a_prepare", False)
+        and evidence.get("verdict", {}).get("route_a_semantic", False)
         and evidence.get("verdict", {}).get("cross_session_refused", False)
         and evidence.get("verdict", {}).get("jev_live_choice", False)
         and evidence.get("verdict", {}).get("action_executed", False)
         and evidence.get("verdict", {}).get("postcondition_verified", False)
+        and evidence.get("verdict", {}).get("screenshots_present", False)
         and evidence.get("verdict", {}).get("frames_5_in_5s", False)
         and not evidence.get("errors")
     )
