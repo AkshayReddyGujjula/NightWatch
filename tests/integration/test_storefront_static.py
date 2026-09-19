@@ -15,12 +15,18 @@ def test_storefront_pages_and_assets_are_served_without_shadowing_api() -> None:
     assert checkout_x.status_code == 200
     assert "Pay now" in checkout_x.text
     assert 'type="text" inputmode="email" autocomplete="email"' in checkout_x.text
+    assert 'value="demo@example.com"' in checkout_x.text
+    assert "A blank email safely defaults to demo@example.com" in checkout_x.text
+    assert "1 Demo Street, London" in checkout_x.text
 
     checkout_y = client.get("/checkout-y.html")
     assert checkout_y.status_code == 200
     assert "Confirm order" in checkout_y.text
     assert "Add voucher" in checkout_y.text
     assert 'type="text" inputmode="email" autocomplete="email"' in checkout_y.text
+    assert 'value="demo@example.com"' in checkout_y.text
+    assert "A blank email safely defaults to demo@example.com" in checkout_y.text
+    assert "1 Demo Street, London" in checkout_y.text
 
     assert client.get("/assets/api.js").status_code == 200
     assert client.get("/health").json()["service"] == "live_store"
@@ -64,3 +70,4 @@ def test_storefront_carries_provider_incident_notice_to_status_page() -> None:
     assert response.status_code == 200
     assert "nw.incident.${orderId}" in response.text
     assert 'showBanner(incidentMessage, "err")' in response.text
+    assert '|| "demo@example.com"' in response.text

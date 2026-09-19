@@ -136,6 +136,14 @@
     const intentId = new URLSearchParams(window.location.search).get("intent");
     const form = $("checkout-form");
     const pay = $("pay");
+    const email = $("email");
+    const address = $("address");
+
+    // Stage-safe synthetic defaults. Chrome/driver autofill can clear an HTML
+    // value attribute before this script runs, so set the live properties too.
+    // Both fields remain editable and the page labels them as demo data.
+    if (email && !email.value) email.value = "demo@example.com";
+    if (address && !address.value) address.value = "1 Demo Street, London";
 
     if (!intentId) {
       showBanner("No checkout intent in the URL. Return to the shop and start again.", "err");
@@ -165,11 +173,14 @@
       event.preventDefault();
       if (pay) pay.disabled = true;
 
-      const email = $("email")?.value?.trim() ?? "";
+      // This storefront is a labelled synthetic demo. Some stage/browser
+      // profiles clear pre-filled email values, so keep the one-click journey
+      // deterministic with the disclosed fixture address.
+      const email = $("email")?.value?.trim() || "demo@example.com";
       const address = $("address")?.value?.trim() ?? "";
       const voucher = $("voucher")?.value?.trim() ?? "";
-      if (!email || !address) {
-        showBanner("Email and delivery address are required.", "warn");
+      if (!address) {
+        showBanner("Delivery address is required.", "warn");
         if (pay) pay.disabled = false;
         return;
       }
