@@ -266,6 +266,10 @@ class CaptureRequest(StrictModel):
     idempotency_key: NonEmptyStr
     amount_minor: MinorAmount
     currency: Currency
+    # Required only when the operation is not pre-registered: the provider
+    # auto-registers it within the token's namespace (evaluator registration
+    # remains the way to freeze amounts for deterministic fixtures).
+    intent_id: IdStr | None = None
 
 
 class CaptureResponse(StrictModel):
@@ -312,3 +316,34 @@ class ScopedTokenRequest(StrictModel):
 class ScopedTokenResponse(StrictModel):
     token: NonEmptyStr
     expires_at_utc: UtcDatetime
+
+
+class RefundApiRequest(StrictModel):
+    """Public ``POST /api/refunds`` body (plan §9.2)."""
+
+    order_id: IdStr
+    refund_intent_id: IdStr
+    amount_minor: MinorAmount
+
+
+class RouterUpdateRequest(StrictModel):
+    """Internal ``PUT /internal/router`` body (plan §9.2, §14.2)."""
+
+    mode: Literal["BUGGY", "SAFE_HOLD", "SAFE", "LEGACY"]
+    expected_generation: Annotated[int, Field(ge=0)]
+    lease_id: IdStr | None = None
+    lease_expires_at: UtcDatetime | None = None
+
+
+class StoreFacts(StrictModel):
+    """Evaluator-only app truth for one intent (``GET /internal/state/{intent_id}``)."""
+
+    intent_id: IdStr
+    order_status: OrderStatus | None = None
+    order_count: Annotated[int, Field(ge=0)]
+    operation_count: Annotated[int, Field(ge=0)]
+    operation_id: IdStr | None = None
+    idempotency_key: str | None = None
+    confirmation_count: Annotated[int, Field(ge=0)]
+    fulfillment_count: Annotated[int, Field(ge=0)]
+    stock_remaining: Annotated[int, Field(ge=0)]

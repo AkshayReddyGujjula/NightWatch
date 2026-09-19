@@ -68,6 +68,9 @@ MODEL_GROUPS: dict[str, list[type[StrictModel]]] = {
         payment.OperationRegisterRequest,
         payment.ScopedTokenRequest,
         payment.ScopedTokenResponse,
+        payment.RefundApiRequest,
+        payment.RouterUpdateRequest,
+        payment.StoreFacts,
     ],
     "evaluation": [
         evaluation.Scenario,

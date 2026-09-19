@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "refund_intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Refund Intent Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "refund_intent_id",
+    "operation_id",
+    "amount_minor",
+    "created_at"
+  ],
+  "title": "RefundIntent",
+  "type": "object"
+}

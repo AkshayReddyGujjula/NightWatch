@@ -17,6 +17,20 @@
       "title": "Idempotency Key",
       "type": "string"
     },
+    "intent_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Intent Id"
+    },
     "operation_id": {
       "maxLength": 128,
       "minLength": 1,

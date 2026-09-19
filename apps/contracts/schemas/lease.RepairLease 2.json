@@ -1,0 +1,83 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "const": "ROUTE_SAFE_HANDLER",
+      "default": "ROUTE_SAFE_HANDLER",
+      "title": "Action",
+      "type": "string"
+    },
+    "evidence_set_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Evidence Set Sha256",
+      "type": "string"
+    },
+    "expected_router_generation": {
+      "minimum": 0,
+      "title": "Expected Router Generation",
+      "type": "integer"
+    },
+    "expires_at_utc": {
+      "format": "date-time",
+      "title": "Expires At Utc",
+      "type": "string"
+    },
+    "guardian_interval_seconds": {
+      "exclusiveMinimum": 0,
+      "title": "Guardian Interval Seconds",
+      "type": "integer"
+    },
+    "handler_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Handler Sha256",
+      "type": "string"
+    },
+    "issued_at_utc": {
+      "format": "date-time",
+      "title": "Issued At Utc",
+      "type": "string"
+    },
+    "lease_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "router_generation_at_issue": {
+      "minimum": 0,
+      "title": "Router Generation At Issue",
+      "type": "integer"
+    },
+    "scope": {
+      "const": "synthetic_checkout_router",
+      "default": "synthetic_checkout_router",
+      "title": "Scope",
+      "type": "string"
+    },
+    "selected_candidate": {
+      "enum": [
+        "B",
+        "LEGACY"
+      ],
+      "title": "Selected Candidate",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lease_id",
+    "selected_candidate",
+    "evidence_set_sha256",
+    "handler_sha256",
+    "expected_router_generation",
+    "router_generation_at_issue",
+    "issued_at_utc",
+    "expires_at_utc",
+    "guardian_interval_seconds"
+  ],
+  "title": "RepairLease",
+  "type": "object"
+}

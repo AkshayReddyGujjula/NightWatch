@@ -1,0 +1,96 @@
+{
+  "additionalProperties": false,
+  "description": "Evaluator-only app truth for one intent (``GET /internal/state/{intent_id}``).",
+  "properties": {
+    "confirmation_count": {
+      "minimum": 0,
+      "title": "Confirmation Count",
+      "type": "integer"
+    },
+    "fulfillment_count": {
+      "minimum": 0,
+      "title": "Fulfillment Count",
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    },
+    "operation_count": {
+      "minimum": 0,
+      "title": "Operation Count",
+      "type": "integer"
+    },
+    "operation_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Operation Id"
+    },
+    "order_count": {
+      "minimum": 0,
+      "title": "Order Count",
+      "type": "integer"
+    },
+    "order_status": {
+      "anyOf": [
+        {
+          "enum": [
+            "PENDING",
+            "PROCESSING",
+            "PENDING_CONFIRMATION",
+            "PAID",
+            "DECLINED",
+            "QUARANTINED",
+            "SAFE_HOLD",
+            "REFUNDED_PARTIAL",
+            "REFUNDED_FULL"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Order Status"
+    },
+    "stock_remaining": {
+      "minimum": 0,
+      "title": "Stock Remaining",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "intent_id",
+    "order_count",
+    "operation_count",
+    "confirmation_count",
+    "fulfillment_count",
+    "stock_remaining"
+  ],
+  "title": "StoreFacts",
+  "type": "object"
+}

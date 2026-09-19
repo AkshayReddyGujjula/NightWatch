@@ -9,8 +9,9 @@ Python-object strictness (plan §7).
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
@@ -24,6 +25,7 @@ __all__ = [
     "ScenarioId",
     "StrictModel",
     "UtcDatetime",
+    "canonical_sha256",
     "ensure_utc",
     "sha256_hex",
 ]
@@ -63,6 +65,12 @@ UtcDatetime = Annotated[datetime, AfterValidator(ensure_utc)]
 def sha256_hex(data: bytes) -> str:
     """Canonical lowercase SHA-256 digest used across evidence boundaries."""
     return hashlib.sha256(data).hexdigest()
+
+
+def canonical_sha256(payload: Any) -> str:
+    """SHA-256 over canonical JSON (sorted keys, compact separators) — plan §6."""
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return sha256_hex(encoded)
 
 
 class StrictModel(BaseModel):

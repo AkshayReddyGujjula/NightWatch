@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "description": "Internal ``PUT /internal/router`` body (plan \u00a79.2, \u00a714.2).",
+  "properties": {
+    "expected_generation": {
+      "minimum": 0,
+      "title": "Expected Generation",
+      "type": "integer"
+    },
+    "lease_expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Expires At"
+    },
+    "lease_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Id"
+    },
+    "mode": {
+      "enum": [
+        "BUGGY",
+        "SAFE_HOLD",
+        "SAFE",
+        "LEGACY"
+      ],
+      "title": "Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mode",
+    "expected_generation"
+  ],
+  "title": "RouterUpdateRequest",
+  "type": "object"
+}

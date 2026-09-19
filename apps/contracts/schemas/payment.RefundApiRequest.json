@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "description": "Public ``POST /api/refunds`` body (plan \u00a79.2).",
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "order_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Order Id",
+      "type": "string"
+    },
+    "refund_intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Refund Intent Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "order_id",
+    "refund_intent_id",
+    "amount_minor"
+  ],
+  "title": "RefundApiRequest",
+  "type": "object"
+}

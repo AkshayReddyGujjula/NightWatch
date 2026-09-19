@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "quantity": {
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Quantity",
+      "type": "integer"
+    },
+    "sku": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Sku",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sku",
+    "quantity"
+  ],
+  "title": "IntentItem",
+  "type": "object"
+}

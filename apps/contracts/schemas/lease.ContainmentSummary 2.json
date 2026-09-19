@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "safe_hold_set_at_utc": {
+      "format": "date-time",
+      "title": "Safe Hold Set At Utc",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "safe_hold_set_at_utc",
+    "summary"
+  ],
+  "title": "ContainmentSummary",
+  "type": "object"
+}
