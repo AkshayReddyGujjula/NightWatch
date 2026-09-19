@@ -1,0 +1,81 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "bucket_seed": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Bucket Seed",
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "handler_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Handler Hash",
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Expires At"
+    },
+    "lease_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Id"
+    },
+    "mode": {
+      "enum": [
+        "BUGGY",
+        "SAFE_HOLD",
+        "SAFE",
+        "LEGACY"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "rollout_pct": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Rollout Pct",
+      "type": "integer"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "mode",
+    "generation",
+    "handler_hash",
+    "bucket_seed",
+    "updated_at"
+  ],
+  "title": "RouterState",
+  "type": "object"
+}

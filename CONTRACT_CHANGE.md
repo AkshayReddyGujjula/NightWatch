@@ -22,3 +22,18 @@ and in the receipt; a missing or malformed triage block fails the diagnosis clos
 without blocking A/B.
 
 **Impact on Track B:** none — no Track B code consumes these fields.
+
+## 2026-09-19 — Track A reply: freeze decisions accepted; unsigned barrier release recorded
+
+**By:** Track A (Jazil) · **Status:** recorded · **Wire impact:** none
+
+All five freeze decisions in `apps/contracts/README.md` are accepted by both tracks
+(Akshay reviewed, 19 September). One deviation from plan §9.1 wording is recorded here:
+
+§9.1 says the barrier "releases a signed generation". The frozen implementation
+authenticates the release with the scoped runner bearer token plus generation
+monotonicity: every barrier endpoint already requires the scoped `FRAME_INGEST_TOKEN`
+credential, the runners are inside the trust zone, and the generation counter is
+monotonic and read back on every response. No signature field is added now; the wire
+shape is unchanged from the frozen contract. If an explicit signature is wanted later,
+it becomes an additive field at the next contract change.

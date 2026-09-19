@@ -1,0 +1,55 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "capture_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Capture Id",
+      "type": "string"
+    },
+    "captured_at": {
+      "format": "date-time",
+      "title": "Captured At",
+      "type": "string"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Namespace",
+      "type": "string"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "capture_id",
+    "namespace",
+    "operation_id",
+    "idempotency_key",
+    "amount_minor",
+    "currency",
+    "captured_at"
+  ],
+  "title": "CaptureRow",
+  "type": "object"
+}

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from apps.contracts import browser  # noqa: E402
+from apps.contracts import browser, evaluation, incident, lease, payment  # noqa: E402
 from apps.contracts.base import StrictModel  # noqa: E402
 
 MODEL_GROUPS: dict[str, list[type[StrictModel]]] = {
@@ -30,6 +30,59 @@ MODEL_GROUPS: dict[str, list[type[StrictModel]]] = {
         browser.BrowserObservation,
         browser.JevDecision,
         browser.ObservedControl,
+    ],
+    "incident": [
+        incident.IncidentEvent,
+        incident.IncidentCapsule,
+        incident.CapsuleRowSet,
+        incident.LogLine,
+        incident.TriageAdvisory,
+        incident.Hypothesis,
+        incident.GeminiDiagnosis,
+        incident.PatchProposal,
+        incident.CandidateSpec,
+    ],
+    "payment": [
+        payment.IntentItem,
+        payment.CreateIntentRequest,
+        payment.IntentResponse,
+        payment.CheckoutRequest,
+        payment.CheckoutResponse,
+        payment.OrderResponse,
+        payment.CheckoutIntent,
+        payment.Order,
+        payment.PaymentOperation,
+        payment.Confirmation,
+        payment.Fulfillment,
+        payment.RefundIntent,
+        payment.RouterState,
+        payment.RegistrationRow,
+        payment.CaptureRow,
+        payment.RefundRow,
+        payment.LedgerView,
+        payment.ProviderTokenClaims,
+        payment.CaptureRequest,
+        payment.CaptureResponse,
+        payment.RefundRequest,
+        payment.RefundResponse,
+        payment.OperationRegisterRequest,
+        payment.ScopedTokenRequest,
+        payment.ScopedTokenResponse,
+    ],
+    "evaluation": [
+        evaluation.Scenario,
+        evaluation.NegativeControl,
+        evaluation.ScenarioRegistry,
+        evaluation.InvariantResult,
+        evaluation.ScenarioResult,
+        evaluation.CandidateEvaluation,
+        evaluation.StageEvent,
+    ],
+    "lease": [
+        lease.RepairLease,
+        lease.OriginalHarm,
+        lease.ContainmentSummary,
+        lease.RepairReceipt,
     ],
 }
 

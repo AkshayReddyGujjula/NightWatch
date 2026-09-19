@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "CaptureRow": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "capture_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Capture Id",
+          "type": "string"
+        },
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capture_id",
+        "namespace",
+        "operation_id",
+        "idempotency_key",
+        "amount_minor",
+        "currency",
+        "captured_at"
+      ],
+      "title": "CaptureRow",
+      "type": "object"
+    },
+    "RefundRow": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "refund_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Refund Id",
+          "type": "string"
+        },
+        "refund_intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Refund Intent Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "refund_id",
+        "namespace",
+        "operation_id",
+        "refund_intent_id",
+        "amount_minor",
+        "currency",
+        "created_at"
+      ],
+      "title": "RefundRow",
+      "type": "object"
+    },
+    "RegistrationRow": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_actions": {
+          "items": {
+            "enum": [
+              "capture",
+              "refund",
+              "inquiry"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Actions",
+          "type": "array"
+        },
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "registered_at": {
+          "format": "date-time",
+          "title": "Registered At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "namespace",
+        "operation_id",
+        "intent_id",
+        "amount_minor",
+        "currency",
+        "allowed_actions",
+        "registered_at"
+      ],
+      "title": "RegistrationRow",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Evaluator-only read of one namespace; ``digest`` covers the ordered rows.",
+  "properties": {
+    "captures": {
+      "items": {
+        "$ref": "#/$defs/CaptureRow"
+      },
+      "title": "Captures",
+      "type": "array"
+    },
+    "digest": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Digest",
+      "type": "string"
+    },
+    "namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Namespace",
+      "type": "string"
+    },
+    "refunds": {
+      "items": {
+        "$ref": "#/$defs/RefundRow"
+      },
+      "title": "Refunds",
+      "type": "array"
+    },
+    "registrations": {
+      "items": {
+        "$ref": "#/$defs/RegistrationRow"
+      },
+      "title": "Registrations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "namespace",
+    "registrations",
+    "captures",
+    "refunds",
+    "digest"
+  ],
+  "title": "LedgerView",
+  "type": "object"
+}

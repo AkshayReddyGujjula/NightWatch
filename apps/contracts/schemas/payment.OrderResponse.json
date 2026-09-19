@@ -1,0 +1,63 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    },
+    "order_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Order Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PENDING",
+        "PROCESSING",
+        "PENDING_CONFIRMATION",
+        "PAID",
+        "DECLINED",
+        "QUARANTINED",
+        "SAFE_HOLD",
+        "REFUNDED_PARTIAL",
+        "REFUNDED_FULL"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "order_id",
+    "intent_id",
+    "status",
+    "amount_minor",
+    "currency",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "OrderResponse",
+  "type": "object"
+}

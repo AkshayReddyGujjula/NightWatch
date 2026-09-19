@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "confirmation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Confirmation Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "order_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Order Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "confirmation_id",
+    "order_id",
+    "created_at"
+  ],
+  "title": "Confirmation",
+  "type": "object"
+}

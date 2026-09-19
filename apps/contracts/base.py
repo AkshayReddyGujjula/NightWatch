@@ -16,6 +16,7 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstra
 
 __all__ = [
     "CandidateId",
+    "GitSha40",
     "Hash256",
     "IdStr",
     "MonotonicNs",
@@ -33,6 +34,11 @@ ScenarioId = Literal["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08"]
 
 # Lowercase 64-character SHA-256 hex digest.
 Hash256 = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$", min_length=64, max_length=64)]
+
+# Lowercase 40-character git object hash (commit SHAs in patch proposals).
+GitSha40 = Annotated[
+    str, StringConstraints(pattern=r"^[0-9a-f]{40}$", min_length=40, max_length=40)
+]
 
 # Opaque identifier: non-empty, bounded. Deliberately pattern-free so that real
 # sandbox/session/snapshot IDs can never fail a contract for formatting.

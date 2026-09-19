@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "address": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "email": {
+      "maxLength": 254,
+      "minLength": 3,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "title": "Email",
+      "type": "string"
+    },
+    "voucher_code": {
+      "anyOf": [
+        {
+          "maxLength": 40,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Voucher Code"
+    }
+  },
+  "required": [
+    "email",
+    "address"
+  ],
+  "title": "CheckoutRequest",
+  "type": "object"
+}

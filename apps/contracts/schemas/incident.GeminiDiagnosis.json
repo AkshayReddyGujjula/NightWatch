@@ -1,0 +1,160 @@
+{
+  "$defs": {
+    "Hypothesis": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "contradicting_evidence_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Contradicting Evidence Ids",
+          "type": "array"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "hypothesis_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Hypothesis Id",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 400,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis_id",
+        "summary",
+        "evidence_ids",
+        "confidence"
+      ],
+      "title": "Hypothesis",
+      "type": "object"
+    },
+    "TriageAdvisory": {
+      "additionalProperties": false,
+      "description": "Advisory only (plan \u00a710.4): never qualifies an incident, gates a candidate,\n\ninfluences selection or touches the lease. Renders as MODEL_PROPOSED.",
+      "properties": {
+        "category": {
+          "enum": [
+            "payment_correctness",
+            "deploy_regression",
+            "infrastructure",
+            "security",
+            "unknown"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "rationale": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "category",
+        "severity",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TriageAdvisory",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "hypotheses": {
+      "items": {
+        "$ref": "#/$defs/Hypothesis"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "title": "Hypotheses",
+      "type": "array"
+    },
+    "model_name": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Model Name",
+      "type": "string"
+    },
+    "model_version": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Version"
+    },
+    "requested_experiment": {
+      "enum": [
+        "NONE",
+        "BASELINE_REPLAY",
+        "CANDIDATE_WORLDS"
+      ],
+      "title": "Requested Experiment",
+      "type": "string"
+    },
+    "triage": {
+      "$ref": "#/$defs/TriageAdvisory"
+    },
+    "uncertainty": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Uncertainty",
+      "type": "number"
+    }
+  },
+  "required": [
+    "hypotheses",
+    "requested_experiment",
+    "uncertainty",
+    "triage",
+    "model_name"
+  ],
+  "title": "GeminiDiagnosis",
+  "type": "object"
+}

@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "refund_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Refund Id",
+      "type": "string"
+    },
+    "refund_intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Refund Intent Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "REFUNDED_PARTIAL",
+        "REFUNDED_FULL"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "total_refunded_minor": {
+      "minimum": 0,
+      "title": "Total Refunded Minor",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "refund_id",
+    "operation_id",
+    "refund_intent_id",
+    "amount_minor",
+    "total_refunded_minor",
+    "status"
+  ],
+  "title": "RefundResponse",
+  "type": "object"
+}

@@ -1,0 +1,40 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "capture_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Capture Id",
+      "type": "string"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "replayed": {
+      "title": "Replayed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "capture_id",
+    "operation_id",
+    "amount_minor",
+    "currency",
+    "replayed"
+  ],
+  "title": "CaptureResponse",
+  "type": "object"
+}

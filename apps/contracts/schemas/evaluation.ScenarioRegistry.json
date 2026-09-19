@@ -1,0 +1,199 @@
+{
+  "$defs": {
+    "NegativeControl": {
+      "additionalProperties": false,
+      "properties": {
+        "control_id": {
+          "enum": [
+            "NC-01",
+            "NC-02"
+          ],
+          "title": "Control Id",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "must_fail": {
+          "items": {
+            "enum": [
+              "INV-01",
+              "INV-02",
+              "INV-03",
+              "INV-04",
+              "INV-05",
+              "INV-06"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Must Fail",
+          "type": "array"
+        }
+      },
+      "required": [
+        "control_id",
+        "description",
+        "must_fail"
+      ],
+      "title": "NegativeControl",
+      "type": "object"
+    },
+    "Scenario": {
+      "additionalProperties": false,
+      "description": "One registry entry; the exact case text mirrors plan \u00a713.",
+      "properties": {
+        "case": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Case",
+          "type": "string"
+        },
+        "expected_stock": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Stock"
+        },
+        "fault": {
+          "anyOf": [
+            {
+              "enum": [
+                "DROP_AFTER_CAPTURE_ONCE",
+                "TIMEOUT_BEFORE_CAPTURE_ONCE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fault"
+        },
+        "invariants": {
+          "items": {
+            "enum": [
+              "INV-01",
+              "INV-02",
+              "INV-03",
+              "INV-04",
+              "INV-05",
+              "INV-06"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Invariants",
+          "type": "array"
+        },
+        "quantity": {
+          "default": 1,
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Quantity",
+          "type": "integer"
+        },
+        "required_outcome": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Required Outcome",
+          "type": "string"
+        },
+        "scenario_id": {
+          "enum": [
+            "S01",
+            "S02",
+            "S03",
+            "S04",
+            "S05",
+            "S06",
+            "S07",
+            "S08"
+          ],
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "sku": {
+          "default": "SKU-A",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Sku",
+          "type": "string"
+        },
+        "surface": {
+          "enum": [
+            "UI_X",
+            "UI_Y",
+            "API"
+          ],
+          "title": "Surface",
+          "type": "string"
+        },
+        "voucher_minor": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voucher Minor"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "surface",
+        "case",
+        "required_outcome",
+        "invariants"
+      ],
+      "title": "Scenario",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "negative_controls": {
+      "items": {
+        "$ref": "#/$defs/NegativeControl"
+      },
+      "minItems": 1,
+      "title": "Negative Controls",
+      "type": "array"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/Scenario"
+      },
+      "minItems": 1,
+      "title": "Scenarios",
+      "type": "array"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "scenarios",
+    "negative_controls"
+  ],
+  "title": "ScenarioRegistry",
+  "type": "object"
+}

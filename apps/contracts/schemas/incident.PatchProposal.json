@@ -1,0 +1,65 @@
+{
+  "additionalProperties": false,
+  "description": "Candidate C's bounded proposal; validated by the patch guard, never deployed.",
+  "properties": {
+    "base_commit_sha": {
+      "maxLength": 40,
+      "minLength": 40,
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Base Commit Sha",
+      "type": "string"
+    },
+    "changed_lines": {
+      "maximum": 40,
+      "minimum": 0,
+      "title": "Changed Lines",
+      "type": "integer"
+    },
+    "expected_behavior": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Expected Behavior",
+      "type": "string"
+    },
+    "rationale": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "risks": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "target_path": {
+      "const": "apps/live_store/domain/payment_retry.py",
+      "title": "Target Path",
+      "type": "string"
+    },
+    "tests": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tests",
+      "type": "array"
+    },
+    "unified_diff": {
+      "minLength": 1,
+      "title": "Unified Diff",
+      "type": "string"
+    }
+  },
+  "required": [
+    "base_commit_sha",
+    "target_path",
+    "unified_diff",
+    "rationale",
+    "expected_behavior",
+    "changed_lines"
+  ],
+  "title": "PatchProposal",
+  "type": "object"
+}

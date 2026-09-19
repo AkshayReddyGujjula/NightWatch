@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "description": "The already-harmed intent; NightWatch never claims to reverse it.",
+  "properties": {
+    "amount_minor": {
+      "minimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "capture_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Capture Ids",
+      "type": "array"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "statement": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "intent_id",
+    "operation_id",
+    "capture_ids",
+    "amount_minor",
+    "currency",
+    "statement"
+  ],
+  "title": "OriginalHarm",
+  "type": "object"
+}

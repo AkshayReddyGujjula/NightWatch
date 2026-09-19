@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "IntentItem": {
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Quantity",
+          "type": "integer"
+        },
+        "sku": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Sku",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sku",
+        "quantity"
+      ],
+      "title": "IntentItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/IntentItem"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "intent_id",
+    "items",
+    "amount_minor",
+    "currency",
+    "created_at"
+  ],
+  "title": "IntentResponse",
+  "type": "object"
+}

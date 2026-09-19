@@ -1,0 +1,43 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "fulfillment_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Fulfillment Id",
+      "type": "string"
+    },
+    "order_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Order Id",
+      "type": "string"
+    },
+    "quantity": {
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Quantity",
+      "type": "integer"
+    },
+    "sku": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Sku",
+      "type": "string"
+    }
+  },
+  "required": [
+    "fulfillment_id",
+    "order_id",
+    "sku",
+    "quantity",
+    "created_at"
+  ],
+  "title": "Fulfillment",
+  "type": "object"
+}

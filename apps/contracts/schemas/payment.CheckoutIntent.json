@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "cart_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Cart Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "customer_id": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Customer Id",
+      "type": "string"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "intent_id",
+    "customer_id",
+    "cart_hash",
+    "amount_minor",
+    "currency",
+    "created_at"
+  ],
+  "title": "CheckoutIntent",
+  "type": "object"
+}

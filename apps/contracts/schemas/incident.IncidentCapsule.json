@@ -1,0 +1,557 @@
+{
+  "$defs": {
+    "CapsuleRowSet": {
+      "additionalProperties": false,
+      "description": "Store rows relevant to the harmed intent (plan \u00a76).",
+      "properties": {
+        "intent": {
+          "$ref": "#/$defs/CheckoutIntent"
+        },
+        "operation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaymentOperation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "order": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Order"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "intent"
+      ],
+      "title": "CapsuleRowSet",
+      "type": "object"
+    },
+    "CaptureRow": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "capture_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Capture Id",
+          "type": "string"
+        },
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capture_id",
+        "namespace",
+        "operation_id",
+        "idempotency_key",
+        "amount_minor",
+        "currency",
+        "captured_at"
+      ],
+      "title": "CaptureRow",
+      "type": "object"
+    },
+    "CheckoutIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "cart_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cart Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "customer_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Customer Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_id",
+        "customer_id",
+        "cart_hash",
+        "amount_minor",
+        "currency",
+        "created_at"
+      ],
+      "title": "CheckoutIntent",
+      "type": "object"
+    },
+    "LogLine": {
+      "additionalProperties": false,
+      "properties": {
+        "at_utc": {
+          "format": "date-time",
+          "title": "At Utc",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at_utc",
+        "level",
+        "message"
+      ],
+      "title": "LogLine",
+      "type": "object"
+    },
+    "Order": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "order_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Order Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "PROCESSING",
+            "PENDING_CONFIRMATION",
+            "PAID",
+            "DECLINED",
+            "QUARANTINED",
+            "SAFE_HOLD",
+            "REFUNDED_PARTIAL",
+            "REFUNDED_FULL"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_id",
+        "intent_id",
+        "status",
+        "amount_minor",
+        "currency",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Order",
+      "type": "object"
+    },
+    "PaymentOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "PENDING",
+            "CONFIRMED",
+            "PENDING_CONFIRMATION",
+            "QUARANTINED"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "intent_id",
+        "idempotency_key",
+        "amount_minor",
+        "currency",
+        "state"
+      ],
+      "title": "PaymentOperation",
+      "type": "object"
+    },
+    "RefundRow": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Namespace",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "refund_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Refund Id",
+          "type": "string"
+        },
+        "refund_intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Refund Intent Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "refund_id",
+        "namespace",
+        "operation_id",
+        "refund_intent_id",
+        "amount_minor",
+        "currency",
+        "created_at"
+      ],
+      "title": "RefundRow",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "bounded_diff": {
+      "title": "Bounded Diff",
+      "type": "string"
+    },
+    "buggy_module_path": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Buggy Module Path",
+      "type": "string"
+    },
+    "buggy_module_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Buggy Module Sha256",
+      "type": "string"
+    },
+    "capsule_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Capsule Sha256",
+      "type": "string"
+    },
+    "current_release_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Current Release Hash",
+      "type": "string"
+    },
+    "exclusions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Exclusions",
+      "type": "array"
+    },
+    "expected_symptom": {
+      "title": "Expected Symptom",
+      "type": "string"
+    },
+    "fault": {
+      "anyOf": [
+        {
+          "enum": [
+            "DROP_AFTER_CAPTURE_ONCE",
+            "TIMEOUT_BEFORE_CAPTURE_ONCE"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fault"
+    },
+    "fixture_knowledge": {
+      "const": true,
+      "default": true,
+      "title": "Fixture Knowledge",
+      "type": "boolean"
+    },
+    "harmed_intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Harmed Intent Id",
+      "type": "string"
+    },
+    "harmed_operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Harmed Operation Id",
+      "type": "string"
+    },
+    "harmed_order_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Harmed Order Id",
+      "type": "string"
+    },
+    "image_digest": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Image Digest",
+      "type": "string"
+    },
+    "incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "ledger_captures": {
+      "items": {
+        "$ref": "#/$defs/CaptureRow"
+      },
+      "title": "Ledger Captures",
+      "type": "array"
+    },
+    "ledger_refunds": {
+      "items": {
+        "$ref": "#/$defs/RefundRow"
+      },
+      "title": "Ledger Refunds",
+      "type": "array"
+    },
+    "oracle_code_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Oracle Code Hash",
+      "type": "string"
+    },
+    "original_namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Original Namespace",
+      "type": "string"
+    },
+    "previous_release_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Previous Release Hash",
+      "type": "string"
+    },
+    "recent_logs": {
+      "items": {
+        "$ref": "#/$defs/LogLine"
+      },
+      "title": "Recent Logs",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "safe_handler_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Safe Handler Hash",
+      "type": "string"
+    },
+    "scenario_registry_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Scenario Registry Hash",
+      "type": "string"
+    },
+    "seed_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Seed Hash",
+      "type": "string"
+    },
+    "started_at_utc": {
+      "format": "date-time",
+      "title": "Started At Utc",
+      "type": "string"
+    },
+    "started_monotonic_ns": {
+      "minimum": 0,
+      "title": "Started Monotonic Ns",
+      "type": "integer"
+    },
+    "store_rows": {
+      "$ref": "#/$defs/CapsuleRowSet"
+    },
+    "unavailable_evidence": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unavailable Evidence",
+      "type": "array"
+    }
+  },
+  "required": [
+    "incident_id",
+    "run_id",
+    "started_at_utc",
+    "started_monotonic_ns",
+    "original_namespace",
+    "harmed_intent_id",
+    "harmed_order_id",
+    "harmed_operation_id",
+    "ledger_captures",
+    "store_rows",
+    "current_release_hash",
+    "previous_release_hash",
+    "safe_handler_hash",
+    "buggy_module_path",
+    "buggy_module_sha256",
+    "bounded_diff",
+    "seed_hash",
+    "scenario_registry_hash",
+    "oracle_code_hash",
+    "image_digest",
+    "expected_symptom",
+    "capsule_sha256"
+  ],
+  "title": "IncidentCapsule",
+  "type": "object"
+}

@@ -1,0 +1,55 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Namespace",
+      "type": "string"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "refund_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Refund Id",
+      "type": "string"
+    },
+    "refund_intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Refund Intent Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "refund_id",
+    "namespace",
+    "operation_id",
+    "refund_intent_id",
+    "amount_minor",
+    "currency",
+    "created_at"
+  ],
+  "title": "RefundRow",
+  "type": "object"
+}

@@ -1,0 +1,66 @@
+{
+  "additionalProperties": false,
+  "description": "Decoded scoped provider token bound to one run/candidate/scenario (plan \u00a79.3).",
+  "properties": {
+    "allowed_operation_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Allowed Operation Ids",
+      "type": "array"
+    },
+    "candidate_id": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ],
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "expires_at_utc": {
+      "format": "date-time",
+      "title": "Expires At Utc",
+      "type": "string"
+    },
+    "incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Namespace",
+      "type": "string"
+    },
+    "scenario_id": {
+      "enum": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08"
+      ],
+      "title": "Scenario Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "incident_id",
+    "candidate_id",
+    "scenario_id",
+    "namespace",
+    "allowed_operation_ids",
+    "expires_at_utc"
+  ],
+  "title": "ProviderTokenClaims",
+  "type": "object"
+}

@@ -1,0 +1,203 @@
+{
+  "$defs": {
+    "CheckoutIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "cart_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cart Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "customer_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Customer Id",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_id",
+        "customer_id",
+        "cart_hash",
+        "amount_minor",
+        "currency",
+        "created_at"
+      ],
+      "title": "CheckoutIntent",
+      "type": "object"
+    },
+    "Order": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "order_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Order Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "PROCESSING",
+            "PENDING_CONFIRMATION",
+            "PAID",
+            "DECLINED",
+            "QUARANTINED",
+            "SAFE_HOLD",
+            "REFUNDED_PARTIAL",
+            "REFUNDED_FULL"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_id",
+        "intent_id",
+        "status",
+        "amount_minor",
+        "currency",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Order",
+      "type": "object"
+    },
+    "PaymentOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "exclusiveMinimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "PENDING",
+            "CONFIRMED",
+            "PENDING_CONFIRMATION",
+            "QUARANTINED"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "intent_id",
+        "idempotency_key",
+        "amount_minor",
+        "currency",
+        "state"
+      ],
+      "title": "PaymentOperation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Store rows relevant to the harmed intent (plan \u00a76).",
+  "properties": {
+    "intent": {
+      "$ref": "#/$defs/CheckoutIntent"
+    },
+    "operation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaymentOperation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "order": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Order"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "intent"
+  ],
+  "title": "CapsuleRowSet",
+  "type": "object"
+}

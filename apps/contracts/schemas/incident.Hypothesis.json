@@ -1,0 +1,50 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "contradicting_evidence_ids": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Contradicting Evidence Ids",
+      "type": "array"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "hypothesis_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Hypothesis Id",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 400,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "hypothesis_id",
+    "summary",
+    "evidence_ids",
+    "confidence"
+  ],
+  "title": "Hypothesis",
+  "type": "object"
+}

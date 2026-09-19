@@ -1,0 +1,87 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "base_commit_sha": {
+      "maxLength": 40,
+      "minLength": 40,
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Base Commit Sha",
+      "type": "string"
+    },
+    "candidate_id": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ],
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "capsule_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Capsule Sha256",
+      "type": "string"
+    },
+    "code_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Code Hash",
+      "type": "string"
+    },
+    "image_digest": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Image Digest",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "ROLLBACK",
+        "SAFE_HANDLER",
+        "GEMINI_PATCH"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "live_eligible": {
+      "title": "Live Eligible",
+      "type": "boolean"
+    },
+    "provider_namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Provider Namespace",
+      "type": "string"
+    },
+    "rank": {
+      "maximum": 2,
+      "minimum": 0,
+      "title": "Rank",
+      "type": "integer"
+    },
+    "seed_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Seed Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate_id",
+    "kind",
+    "rank",
+    "live_eligible",
+    "image_digest",
+    "code_hash",
+    "base_commit_sha",
+    "capsule_sha256",
+    "seed_hash",
+    "provider_namespace"
+  ],
+  "title": "CandidateSpec",
+  "type": "object"
+}

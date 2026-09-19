@@ -1,0 +1,77 @@
+{
+  "additionalProperties": false,
+  "description": "No ``order_id`` means the checkout did not complete: read ``status``.",
+  "properties": {
+    "amount_minor": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amount Minor"
+    },
+    "currency": {
+      "const": "GBP",
+      "default": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "order_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Order Id"
+    },
+    "status": {
+      "enum": [
+        "PENDING",
+        "PROCESSING",
+        "PENDING_CONFIRMATION",
+        "PAID",
+        "DECLINED",
+        "QUARANTINED",
+        "SAFE_HOLD",
+        "REFUNDED_PARTIAL",
+        "REFUNDED_FULL"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "intent_id",
+    "status"
+  ],
+  "title": "CheckoutResponse",
+  "type": "object"
+}

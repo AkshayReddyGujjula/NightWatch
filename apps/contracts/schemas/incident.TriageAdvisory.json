@@ -1,0 +1,47 @@
+{
+  "additionalProperties": false,
+  "description": "Advisory only (plan \u00a710.4): never qualifies an incident, gates a candidate,\n\ninfluences selection or touches the lease. Renders as MODEL_PROPOSED.",
+  "properties": {
+    "category": {
+      "enum": [
+        "payment_correctness",
+        "deploy_regression",
+        "infrastructure",
+        "security",
+        "unknown"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "rationale": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "required": [
+    "category",
+    "severity",
+    "rationale",
+    "confidence"
+  ],
+  "title": "TriageAdvisory",
+  "type": "object"
+}

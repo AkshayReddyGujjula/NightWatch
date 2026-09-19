@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "at_utc": {
+      "format": "date-time",
+      "title": "At Utc",
+      "type": "string"
+    },
+    "level": {
+      "enum": [
+        "INFO",
+        "WARN",
+        "ERROR"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "message": {
+      "maxLength": 500,
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "at_utc",
+    "level",
+    "message"
+  ],
+  "title": "LogLine",
+  "type": "object"
+}

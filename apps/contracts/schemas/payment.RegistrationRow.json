@@ -1,0 +1,62 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "allowed_actions": {
+      "items": {
+        "enum": [
+          "capture",
+          "refund",
+          "inquiry"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Allowed Actions",
+      "type": "array"
+    },
+    "amount_minor": {
+      "exclusiveMinimum": 0,
+      "title": "Amount Minor",
+      "type": "integer"
+    },
+    "currency": {
+      "const": "GBP",
+      "title": "Currency",
+      "type": "string"
+    },
+    "intent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Intent Id",
+      "type": "string"
+    },
+    "namespace": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Namespace",
+      "type": "string"
+    },
+    "operation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Operation Id",
+      "type": "string"
+    },
+    "registered_at": {
+      "format": "date-time",
+      "title": "Registered At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "namespace",
+    "operation_id",
+    "intent_id",
+    "amount_minor",
+    "currency",
+    "allowed_actions",
+    "registered_at"
+  ],
+  "title": "RegistrationRow",
+  "type": "object"
+}

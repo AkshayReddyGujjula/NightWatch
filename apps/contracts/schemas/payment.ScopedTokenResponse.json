@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "expires_at_utc": {
+      "format": "date-time",
+      "title": "Expires At Utc",
+      "type": "string"
+    },
+    "token": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Token",
+      "type": "string"
+    }
+  },
+  "required": [
+    "token",
+    "expires_at_utc"
+  ],
+  "title": "ScopedTokenResponse",
+  "type": "object"
+}

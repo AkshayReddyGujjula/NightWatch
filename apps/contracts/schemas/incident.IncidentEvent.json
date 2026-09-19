@@ -1,0 +1,105 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "event_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Event Hash",
+      "type": "string"
+    },
+    "event_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "RUN_REQUESTED",
+        "DETECTED",
+        "SAFE_HOLD_SET",
+        "CAPSULE_FROZEN",
+        "REPRODUCING",
+        "VALIDATING",
+        "SELECTING",
+        "STAGED_SMOKE",
+        "LEASED",
+        "ESCALATED",
+        "SAFE_STOP_REQUESTED",
+        "LEASE_EXPIRED",
+        "LEASE_REVOKED"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "monotonic_ns": {
+      "minimum": 0,
+      "title": "Monotonic Ns",
+      "type": "integer"
+    },
+    "occurred_at_utc": {
+      "format": "date-time",
+      "title": "Occurred At Utc",
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Payload",
+      "type": "object"
+    },
+    "prior_event_hash": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prior Event Hash"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "state_version": {
+      "minimum": 0,
+      "title": "State Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "event_id",
+    "incident_id",
+    "kind",
+    "occurred_at_utc",
+    "monotonic_ns",
+    "state_version",
+    "event_hash"
+  ],
+  "title": "IncidentEvent",
+  "type": "object"
+}

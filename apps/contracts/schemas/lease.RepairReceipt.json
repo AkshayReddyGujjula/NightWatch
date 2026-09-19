@@ -1,0 +1,502 @@
+{
+  "$defs": {
+    "CandidateEvaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ],
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "evidence_set_sha256": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Set Sha256"
+        },
+        "finished_at_utc": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Finished At Utc"
+        },
+        "function_call_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Function Call Id"
+        },
+        "invariant_ids": {
+          "items": {
+            "enum": [
+              "INV-01",
+              "INV-02",
+              "INV-03",
+              "INV-04",
+              "INV-05",
+              "INV-06"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Invariant Ids",
+          "type": "array"
+        },
+        "sandbox_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sandbox Id"
+        },
+        "scenario_ids": {
+          "items": {
+            "enum": [
+              "S01",
+              "S02",
+              "S03",
+              "S04",
+              "S05",
+              "S06",
+              "S07",
+              "S08"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Scenario Ids",
+          "type": "array"
+        },
+        "started_at_utc": {
+          "format": "date-time",
+          "title": "Started At Utc",
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "PENDING",
+            "RUNNING",
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "SKIPPED_INVALID"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "scenario_ids",
+        "invariant_ids",
+        "verdict",
+        "started_at_utc"
+      ],
+      "title": "CandidateEvaluation",
+      "type": "object"
+    },
+    "ContainmentSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "safe_hold_set_at_utc": {
+          "format": "date-time",
+          "title": "Safe Hold Set At Utc",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "safe_hold_set_at_utc",
+        "summary"
+      ],
+      "title": "ContainmentSummary",
+      "type": "object"
+    },
+    "OriginalHarm": {
+      "additionalProperties": false,
+      "description": "The already-harmed intent; NightWatch never claims to reverse it.",
+      "properties": {
+        "amount_minor": {
+          "minimum": 0,
+          "title": "Amount Minor",
+          "type": "integer"
+        },
+        "capture_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Capture Ids",
+          "type": "array"
+        },
+        "currency": {
+          "const": "GBP",
+          "title": "Currency",
+          "type": "string"
+        },
+        "intent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Intent Id",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "statement": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_id",
+        "operation_id",
+        "capture_ids",
+        "amount_minor",
+        "currency",
+        "statement"
+      ],
+      "title": "OriginalHarm",
+      "type": "object"
+    },
+    "RepairLease": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "const": "ROUTE_SAFE_HANDLER",
+          "default": "ROUTE_SAFE_HANDLER",
+          "title": "Action",
+          "type": "string"
+        },
+        "evidence_set_sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Evidence Set Sha256",
+          "type": "string"
+        },
+        "expected_router_generation": {
+          "minimum": 0,
+          "title": "Expected Router Generation",
+          "type": "integer"
+        },
+        "expires_at_utc": {
+          "format": "date-time",
+          "title": "Expires At Utc",
+          "type": "string"
+        },
+        "guardian_interval_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Guardian Interval Seconds",
+          "type": "integer"
+        },
+        "handler_sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Handler Sha256",
+          "type": "string"
+        },
+        "issued_at_utc": {
+          "format": "date-time",
+          "title": "Issued At Utc",
+          "type": "string"
+        },
+        "lease_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Lease Id",
+          "type": "string"
+        },
+        "router_generation_at_issue": {
+          "minimum": 0,
+          "title": "Router Generation At Issue",
+          "type": "integer"
+        },
+        "scope": {
+          "const": "synthetic_checkout_router",
+          "default": "synthetic_checkout_router",
+          "title": "Scope",
+          "type": "string"
+        },
+        "selected_candidate": {
+          "enum": [
+            "B",
+            "LEGACY"
+          ],
+          "title": "Selected Candidate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lease_id",
+        "selected_candidate",
+        "evidence_set_sha256",
+        "handler_sha256",
+        "expected_router_generation",
+        "router_generation_at_issue",
+        "issued_at_utc",
+        "expires_at_utc",
+        "guardian_interval_seconds"
+      ],
+      "title": "RepairLease",
+      "type": "object"
+    },
+    "StageEvent": {
+      "additionalProperties": false,
+      "description": "One staged-smoke stage; counts come from actual bucket IDs (plan \u00a714.2).",
+      "properties": {
+        "failed_probe_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Failed Probe Ids",
+          "type": "array"
+        },
+        "held_count": {
+          "minimum": 0,
+          "title": "Held Count",
+          "type": "integer"
+        },
+        "loss_probe_count": {
+          "minimum": 0,
+          "title": "Loss Probe Count",
+          "type": "integer"
+        },
+        "normal_probe_count": {
+          "minimum": 0,
+          "title": "Normal Probe Count",
+          "type": "integer"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "requested_pct": {
+          "enum": [
+            5,
+            25,
+            100
+          ],
+          "title": "Requested Pct",
+          "type": "integer"
+        },
+        "routed_bucket_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Routed Bucket Ids",
+          "type": "array"
+        },
+        "routed_count": {
+          "minimum": 0,
+          "title": "Routed Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "requested_pct",
+        "routed_count",
+        "held_count",
+        "normal_probe_count",
+        "loss_probe_count",
+        "passed"
+      ],
+      "title": "StageEvent",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "candidate_matrix": {
+      "items": {
+        "$ref": "#/$defs/CandidateEvaluation"
+      },
+      "title": "Candidate Matrix",
+      "type": "array"
+    },
+    "capsule_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Capsule Sha256",
+      "type": "string"
+    },
+    "containment": {
+      "$ref": "#/$defs/ContainmentSummary"
+    },
+    "created_at_utc": {
+      "format": "date-time",
+      "title": "Created At Utc",
+      "type": "string"
+    },
+    "decision_basis": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Decision Basis",
+      "type": "string"
+    },
+    "degraded_reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Degraded Reasons",
+      "type": "array"
+    },
+    "demo_mode": {
+      "enum": [
+        "FULL",
+        "CORE"
+      ],
+      "title": "Demo Mode",
+      "type": "string"
+    },
+    "evidence_set_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Evidence Set Sha256",
+      "type": "string"
+    },
+    "incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "lease": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RepairLease"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "lease_readback_sha256": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Readback Sha256"
+    },
+    "lease_readback_summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Readback Summary"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "model_ids": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Model Ids",
+      "type": "array"
+    },
+    "original_harm": {
+      "$ref": "#/$defs/OriginalHarm"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "stage_events": {
+      "items": {
+        "$ref": "#/$defs/StageEvent"
+      },
+      "title": "Stage Events",
+      "type": "array"
+    }
+  },
+  "required": [
+    "incident_id",
+    "capsule_sha256",
+    "run_id",
+    "evidence_set_sha256",
+    "original_harm",
+    "containment",
+    "decision_basis",
+    "demo_mode",
+    "created_at_utc"
+  ],
+  "title": "RepairReceipt",
+  "type": "object"
+}

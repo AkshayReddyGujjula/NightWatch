@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "scenario_id": "S01",
+      "surface": "UI_X",
+      "case": "SKU-A, qty 1, no fault, £79.99",
+      "required_outcome": "PAID; 1 order/capture/confirmation; stock 99",
+      "invariants": ["INV-01", "INV-02", "INV-04", "INV-05"],
+      "fault": null,
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 99
+    },
+    {
+      "scenario_id": "S02",
+      "surface": "UI_Y",
+      "case": "SKU-A, qty 1, DROP_AFTER_CAPTURE_ONCE",
+      "required_outcome": "PAID only after inquiry; 1 capture/confirmation",
+      "invariants": ["INV-01", "INV-02", "INV-05"],
+      "fault": "DROP_AFTER_CAPTURE_ONCE",
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 99
+    },
+    {
+      "scenario_id": "S03",
+      "surface": "API",
+      "case": "two concurrent submits, same intent",
+      "required_outcome": "same order; 1 operation/capture/confirmation",
+      "invariants": ["INV-01", "INV-02", "INV-05"],
+      "fault": null,
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 99
+    },
+    {
+      "scenario_id": "S04",
+      "surface": "API",
+      "case": "refresh/replay after paid",
+      "required_outcome": "same order/confirmation; no new capture",
+      "invariants": ["INV-01", "INV-02"],
+      "fault": null,
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 99
+    },
+    {
+      "scenario_id": "S05",
+      "surface": "API",
+      "case": "SKU-A qty 2, promo £10.00, loss after capture; £149.98",
+      "required_outcome": "PAID; one capture for 14998; stock 98",
+      "invariants": ["INV-01", "INV-02", "INV-04"],
+      "fault": "DROP_AFTER_CAPTURE_ONCE",
+      "sku": "SKU-A",
+      "quantity": 2,
+      "voucher_minor": 1000,
+      "expected_stock": 98
+    },
+    {
+      "scenario_id": "S06",
+      "surface": "API",
+      "case": "full refund £79.99, replay same refund intent",
+      "required_outcome": "one refund; total 7999; REFUNDED_FULL",
+      "invariants": ["INV-01", "INV-02", "INV-03"],
+      "fault": null,
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 99
+    },
+    {
+      "scenario_id": "S07",
+      "surface": "API",
+      "case": "distinct partial refunds £20 + £10; replay second",
+      "required_outcome": "two refunds; total 3000; REFUNDED_PARTIAL",
+      "invariants": ["INV-01", "INV-02", "INV-03"],
+      "fault": null,
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 99
+    },
+    {
+      "scenario_id": "S08",
+      "surface": "API",
+      "case": "TIMEOUT_BEFORE_CAPTURE_ONCE",
+      "required_outcome": "PENDING; zero capture/confirmation; stock 100; no blind retry",
+      "invariants": ["INV-01", "INV-02", "INV-05"],
+      "fault": "TIMEOUT_BEFORE_CAPTURE_ONCE",
+      "sku": "SKU-A",
+      "quantity": 1,
+      "voucher_minor": null,
+      "expected_stock": 100
+    }
+  ],
+  "negative_controls": [
+    {
+      "control_id": "NC-01",
+      "description": "fake app state/UI says PAID but ledger has zero capture",
+      "must_fail": ["INV-02", "INV-05"]
+    },
+    {
+      "control_id": "NC-02",
+      "description": "two orders share one intent and each has one capture",
+      "must_fail": ["INV-01"]
+    }
+  ]
+}
