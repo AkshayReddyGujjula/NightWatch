@@ -27,12 +27,14 @@
         "idempotency_key": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Idempotency Key",
           "type": "string"
         },
         "namespace": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Namespace",
           "type": "string"
         },
@@ -76,6 +78,7 @@
         "namespace": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Namespace",
           "type": "string"
         },
@@ -145,6 +148,7 @@
         "namespace": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Namespace",
           "type": "string"
         },
@@ -193,6 +197,7 @@
     "namespace": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Namespace",
       "type": "string"
     },

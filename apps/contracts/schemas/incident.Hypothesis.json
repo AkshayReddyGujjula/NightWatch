@@ -11,6 +11,7 @@
       "items": {
         "maxLength": 512,
         "minLength": 1,
+        "pattern": "\\S",
         "type": "string"
       },
       "title": "Contradicting Evidence Ids",
@@ -20,6 +21,7 @@
       "items": {
         "maxLength": 512,
         "minLength": 1,
+        "pattern": "\\S",
         "type": "string"
       },
       "minItems": 1,

@@ -87,19 +87,73 @@ def test_registration_amount_mismatch_is_rejected() -> None:
     assert excinfo.value.status_code == 409
 
 
-def test_wildcard_token_auto_registers_but_requires_intent_id() -> None:
+def test_wildcard_token_cannot_auto_register_operations() -> None:
+    store = make_store()
+    with pytest.raises(ProviderError) as excinfo:
+        store.capture(
+            NS,
+            capture_request(operation_id="op_dynamic", intent_id="pi_dynamic"),
+            allowed_operation_ids=WILDCARD,
+        )
+    assert excinfo.value.status_code == 404
+
+
+def test_explicit_token_can_auto_register_once() -> None:
     store = make_store()
     request = capture_request(operation_id="op_dynamic")
     with pytest.raises(ProviderError) as excinfo:
-        store.capture(NS, request, allowed_operation_ids=WILDCARD)
-    assert excinfo.value.status_code == 422
+        store.capture(NS, request, allowed_operation_ids=["op_dynamic"])
+    assert excinfo.value.status_code == 422  # intent_id required on auto-registration
 
     registered = store.capture(
         NS,
         capture_request(operation_id="op_dynamic", intent_id="pi_dynamic"),
-        allowed_operation_ids=WILDCARD,
+        allowed_operation_ids=["op_dynamic"],
     )
     assert registered.replayed is False
+
+
+def test_capture_requires_the_capture_action() -> None:
+    store = LedgerStore()
+    store.create_namespace(NS)
+    store.register_operation(
+        OperationRegisterRequest(
+            namespace=NS,
+            operation_id=OP,
+            intent_id="pi_unit_003",
+            amount_minor=7999,
+            currency="GBP",
+            allowed_actions=["refund", "inquiry"],
+        )
+    )
+    with pytest.raises(ProviderError) as excinfo:
+        store.capture(NS, capture_request(), allowed_operation_ids=ALLOWED)
+    assert excinfo.value.status_code == 403
+
+
+def test_intent_mismatch_is_rejected() -> None:
+    store = make_store()
+    with pytest.raises(ProviderError) as excinfo:
+        store.capture(
+            NS, capture_request(intent_id="pi_other"), allowed_operation_ids=ALLOWED
+        )
+    assert excinfo.value.status_code == 409
+
+
+def test_two_operations_for_one_intent_are_rejected() -> None:
+    store = make_store()
+    with pytest.raises(ProviderError) as excinfo:
+        store.register_operation(
+            OperationRegisterRequest(
+                namespace=NS,
+                operation_id="op_second",
+                intent_id="pi_unit_001",
+                amount_minor=7999,
+                currency="GBP",
+                allowed_actions=["capture"],
+            )
+        )
+    assert excinfo.value.status_code == 409
 
 
 def test_namespaces_are_isolated() -> None:

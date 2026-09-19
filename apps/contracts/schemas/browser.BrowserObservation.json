@@ -16,6 +16,7 @@
         "name": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Name",
           "type": "string"
         },
@@ -36,6 +37,7 @@
         "role": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Role",
           "type": "string"
         }
@@ -70,6 +72,7 @@
     "goal": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Goal",
       "type": "string"
     },
@@ -87,6 +90,7 @@
     "origin": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Origin",
       "type": "string"
     },
@@ -102,6 +106,7 @@
     "url": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Url",
       "type": "string"
     }

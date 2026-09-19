@@ -13,19 +13,28 @@ import json
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+)
 
 __all__ = [
     "CandidateId",
     "GitSha40",
     "Hash256",
     "IdStr",
+    "IsoUtcDatetime",
     "MonotonicNs",
     "NonEmptyStr",
     "ScenarioId",
     "StrictModel",
     "UtcDatetime",
     "canonical_sha256",
+    "coerce_iso_datetime",
     "ensure_utc",
     "sha256_hex",
 ]
@@ -46,7 +55,9 @@ GitSha40 = Annotated[
 # sandbox/session/snapshot IDs can never fail a contract for formatting.
 IdStr = Annotated[str, StringConstraints(min_length=1, max_length=128)]
 
-NonEmptyStr = Annotated[str, StringConstraints(min_length=1, max_length=512)]
+NonEmptyStr = Annotated[
+    str, StringConstraints(min_length=1, max_length=512, pattern=r"\S")
+]
 
 # Monotonic integer nanoseconds (plan §7).
 MonotonicNs = Annotated[int, Field(ge=0)]
@@ -59,7 +70,24 @@ def ensure_utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def coerce_iso_datetime(value: Any) -> Any:
+    """Accept ISO-8601 strings where HTTP bodies arrive as plain JSON.
+
+    FastAPI validates request bodies in Python mode, where ``strict=True``
+    refuses ``str`` for ``datetime``; this before-validator converts ISO text
+    (including a trailing ``Z``) before the strict date check runs.
+    """
+    if isinstance(value, str):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return value
+
+
 UtcDatetime = Annotated[datetime, AfterValidator(ensure_utc)]
+
+# For HTTP request bodies: accepts an ISO string or a datetime, then normalises.
+IsoUtcDatetime = Annotated[
+    datetime, BeforeValidator(coerce_iso_datetime), AfterValidator(ensure_utc)
+]
 
 
 def sha256_hex(data: bytes) -> str:

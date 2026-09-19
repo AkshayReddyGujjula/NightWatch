@@ -63,12 +63,14 @@
         "idempotency_key": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Idempotency Key",
           "type": "string"
         },
         "namespace": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Namespace",
           "type": "string"
         },
@@ -119,6 +121,7 @@
         "customer_id": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Customer Id",
           "type": "string"
         },
@@ -250,6 +253,7 @@
         "idempotency_key": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Idempotency Key",
           "type": "string"
         },
@@ -308,6 +312,7 @@
         "namespace": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Namespace",
           "type": "string"
         },
@@ -352,6 +357,7 @@
     "buggy_module_path": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Buggy Module Path",
       "type": "string"
     },
@@ -430,6 +436,7 @@
     "image_digest": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Image Digest",
       "type": "string"
     },
@@ -463,6 +470,7 @@
     "original_namespace": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Original Namespace",
       "type": "string"
     },

@@ -141,6 +141,7 @@
         "summary": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Summary",
           "type": "string"
         }
@@ -191,6 +192,7 @@
         "statement": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Statement",
           "type": "string"
         }
@@ -297,6 +299,7 @@
           "items": {
             "maxLength": 512,
             "minLength": 1,
+            "pattern": "\\S",
             "type": "string"
           },
           "title": "Failed Probe Ids",
@@ -334,6 +337,7 @@
           "items": {
             "maxLength": 512,
             "minLength": 1,
+            "pattern": "\\S",
             "type": "string"
           },
           "title": "Routed Bucket Ids",
@@ -384,6 +388,7 @@
     "decision_basis": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Decision Basis",
       "type": "string"
     },
@@ -464,6 +469,7 @@
       "items": {
         "maxLength": 512,
         "minLength": 1,
+        "pattern": "\\S",
         "type": "string"
       },
       "title": "Model Ids",

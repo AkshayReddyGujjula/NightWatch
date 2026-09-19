@@ -34,6 +34,7 @@
     "image_digest": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Image Digest",
       "type": "string"
     },
@@ -53,6 +54,7 @@
     "provider_namespace": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Provider Namespace",
       "type": "string"
     },

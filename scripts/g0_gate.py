@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,7 @@ from apps.contracts.payment import LedgerView  # noqa: E402
 from apps.live_store.app import StoreSettings as LiveStoreSettings  # noqa: E402
 from apps.live_store.app import create_app as create_live_store_app  # noqa: E402
 from apps.live_store.provider import HttpPaymentProvider  # noqa: E402
+from apps.live_store.router import safe_handler_hash  # noqa: E402
 from apps.trusted_provider.app import ProviderSettings  # noqa: E402
 from apps.trusted_provider.app import create_app as create_provider_app  # noqa: E402
 from services.detector import detect_duplicate_capture  # noqa: E402
@@ -37,6 +39,8 @@ CHECKOUT_BODY = {"email": "fixture@example.com", "address": "1 Test Street, Lond
 
 
 async def main() -> int:
+    if not __debug__:  # pragma: no cover - fail closed when run with python -O
+        raise RuntimeError("gate assertions are disabled (python -O); refusing to run")
     provider_app = create_provider_app(
         ProviderSettings(provider_signing_secret=SIGNING_SECRET, evaluator_token=EVALUATOR_TOKEN),
         db_path=":memory:",
@@ -84,10 +88,27 @@ async def main() -> int:
             "mode": mode,
             "expected_generation": current.json()["generation"],
         }
-        if lease_id is not None:
-            body["lease_id"] = lease_id
+        if mode == "SAFE":
+            body["lease_id"] = lease_id or "lease_g0"
+            body["lease_expires_at"] = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
+            body["handler_sha256"] = safe_handler_hash()
         response = await store.put("/internal/router", json=body, headers=LIVE_HEADERS)
         assert response.status_code == 200, response.text
+
+    async def pre_register(namespace: str, intent_id: str, amount_minor: int) -> None:
+        response = await evaluator.post(
+            "/internal/operations",
+            json={
+                "namespace": namespace,
+                "operation_id": f"op_{intent_id}",
+                "intent_id": intent_id,
+                "amount_minor": amount_minor,
+                "currency": "GBP",
+                "allowed_actions": ["capture", "refund", "inquiry"],
+            },
+            headers=EVAL_HEADERS,
+        )
+        assert response.status_code == 201, response.text
 
     async def read_ledger(namespace: str) -> dict:
         response = await evaluator.get(f"/internal/ledger/{namespace}", headers=EVAL_HEADERS)
@@ -110,6 +131,7 @@ async def main() -> int:
     )
     assert created.status_code == 201, created.text
     intent_id = created.json()["intent_id"]
+    await pre_register("ns_original", intent_id, created.json()["amount_minor"])
 
     checkout = await original.post(f"/api/checkout/{intent_id}", json=CHECKOUT_BODY)
     assert checkout.status_code == 200, checkout.text
@@ -135,8 +157,11 @@ async def main() -> int:
             json={"customer_id": "cust_g0_repro", "items": [{"sku": "SKU-A", "quantity": 1}]},
         )
     ).json()["intent_id"]
+    await pre_register("ns_repro", repro_intent, 7999)
     repro_checkout = await repro.post(f"/api/checkout/{repro_intent}", json=CHECKOUT_BODY)
     assert repro_checkout.json()["status"] == "PAID"
+    repro_ledger = await read_ledger("ns_repro")
+    assert len(repro_ledger["captures"]) == 1, "the repaired path must capture exactly once"
 
     after_repro = await read_ledger("ns_original")
 
@@ -172,12 +197,7 @@ async def main() -> int:
         "original_digest_before_repro": before["digest"],
         "original_digest_after_repro": after_repro["digest"],
         "repro_namespace": "ns_repro",
-        "repro_capture_count": len(
-            [
-                row
-                for row in (await read_ledger("ns_repro"))["captures"]
-            ]
-        ),
+        "repro_capture_count": len(repro_ledger["captures"]),
         "reset_proof": {
             "duplicate_create_status": duplicate.status_code,
             "fresh_namespace_status": fresh.status_code,

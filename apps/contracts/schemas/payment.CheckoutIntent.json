@@ -26,6 +26,7 @@
     "customer_id": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Customer Id",
       "type": "string"
     },

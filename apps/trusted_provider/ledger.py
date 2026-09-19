@@ -68,6 +68,9 @@ CREATE TABLE IF NOT EXISTS refunds (
   created_at TEXT NOT NULL,
   UNIQUE (namespace, operation_id, refund_intent_id)
 );
+-- One logical intent has at most one provider operation (plan §5.4 INV-01).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_registered_operations_intent
+  ON registered_operations (namespace, intent_id);
 """
 
 
@@ -127,6 +130,20 @@ class LedgerStore:
     def namespace_digest(self, namespace: str) -> str:
         return self.ledger_view(namespace).digest
 
+    def require_namespace(self, namespace: str) -> None:
+        """Public namespace-existence check for routes that write other tables."""
+        with self._lock:
+            self._require_namespace(namespace)
+
+    def capture_exists(self, namespace: str, idempotency_key: str) -> bool:
+        """True when this key already has a capture (a replay, not a fresh append)."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT 1 FROM captures WHERE namespace = ? AND idempotency_key = ?",
+                (namespace, idempotency_key),
+            ).fetchone()
+        return row is not None
+
     # -- registration --------------------------------------------------------
 
     def register_operation(self, request: OperationRegisterRequest) -> RegistrationRow:
@@ -152,7 +169,9 @@ class LedgerStore:
                 )
             except sqlite3.IntegrityError as exc:
                 raise ProviderError(
-                    409, f"operation {request.operation_id!r} is already registered"
+                    409,
+                    f"operation {request.operation_id!r} is already registered, "
+                    "or the intent already has an operation",
                 ) from exc
         return self._registration(request.namespace, request.operation_id)
 
@@ -166,11 +185,15 @@ class LedgerStore:
         allowed_operation_ids: list[str],
     ) -> CaptureResponse:
         operation_allowed = self._operation_allowed(allowed_operation_ids, request.operation_id)
+        explicit_operation = request.operation_id in allowed_operation_ids
         with self._lock, self._conn:
             self._require_namespace(namespace)
             registration = self._registration_or_none(namespace, request.operation_id)
             if registration is None:
-                if not operation_allowed:
+                # The provider rejects unknown operations. Auto-registration is
+                # reserved for tokens that name this exact operation id; a
+                # wildcard token may only touch pre-registered operations.
+                if not explicit_operation:
                     raise ProviderError(404, f"unknown operation {request.operation_id!r}")
                 if request.intent_id is None:
                     raise ProviderError(
@@ -179,6 +202,10 @@ class LedgerStore:
                 registration = self._auto_register(namespace, request)
             elif not operation_allowed:
                 raise ProviderError(403, "operation is not permitted by this token")
+            if "capture" not in registration.allowed_actions:
+                raise ProviderError(403, "captures are not allowed for this operation")
+            if request.intent_id is not None and request.intent_id != registration.intent_id:
+                raise ProviderError(409, "intent_id does not match the registered operation")
             if (
                 registration.amount_minor != request.amount_minor
                 or registration.currency != request.currency
@@ -429,23 +456,28 @@ class LedgerStore:
 
     def _auto_register(self, namespace: str, request: CaptureRequest) -> RegistrationRow:
         assert request.intent_id is not None  # checked by the caller
-        self._conn.execute(
-            """
-            INSERT INTO registered_operations
-              (namespace, operation_id, intent_id, amount_minor, currency,
-               allowed_actions, registered_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                namespace,
-                request.operation_id,
-                request.intent_id,
-                request.amount_minor,
-                request.currency,
-                json.dumps(["capture", "inquiry", "refund"]),
-                _now(),
-            ),
-        )
+        try:
+            self._conn.execute(
+                """
+                INSERT INTO registered_operations
+                  (namespace, operation_id, intent_id, amount_minor, currency,
+                   allowed_actions, registered_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    namespace,
+                    request.operation_id,
+                    request.intent_id,
+                    request.amount_minor,
+                    request.currency,
+                    json.dumps(["capture", "inquiry", "refund"]),
+                    _now(),
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ProviderError(
+                409, "intent already has a registered operation under another id"
+            ) from exc
         return self._registration(namespace, request.operation_id)
 
     def _capture_for_key(self, namespace: str, idempotency_key: str) -> CaptureRow | None:

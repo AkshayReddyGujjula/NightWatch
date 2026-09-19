@@ -158,6 +158,10 @@ async def arm_fault(
     request: Request,
     _: Annotated[None, Depends(require_evaluator)],
 ) -> Response:
+    try:
+        request.app.state.ledger.require_namespace(body.namespace)
+    except ProviderError as exc:
+        raise _as_http_error(exc) from exc
     request.app.state.faults.arm(body.namespace, body.fault)
     return Response(status_code=204)
 
@@ -186,16 +190,20 @@ async def capture(
     if not _operation_allowed(claims.allowed_operation_ids, body.operation_id):
         raise HTTPException(status_code=403, detail="operation is not permitted by this token")
     faults: FaultSchedules = request.app.state.faults
-    if faults.consume(claims.namespace, "TIMEOUT_BEFORE_CAPTURE_ONCE"):
-        # Simulated timeout without any capture; the caller must inquire, never blind-retry.
+    ledger: LedgerStore = request.app.state.ledger
+    # Faults fire only for fresh appends: an idempotent replay neither consumes
+    # the one-shot fault nor loses a response that would have been returned.
+    fresh_append = not ledger.capture_exists(claims.namespace, body.idempotency_key)
+    if fresh_append and faults.consume(claims.namespace, "TIMEOUT_BEFORE_CAPTURE_ONCE"):
+        # Simulated timeout; the caller must inquire, never blind-retry.
         return Response(status_code=DROPPED_RESPONSE_STATUS)
     try:
-        response = request.app.state.ledger.capture(
+        response = ledger.capture(
             claims.namespace, body, allowed_operation_ids=claims.allowed_operation_ids
         )
     except ProviderError as exc:
         raise _as_http_error(exc) from exc
-    if faults.consume(claims.namespace, "DROP_AFTER_CAPTURE_ONCE"):
+    if not response.replayed and faults.consume(claims.namespace, "DROP_AFTER_CAPTURE_ONCE"):
         # The capture is committed; the response is deliberately lost.
         return Response(status_code=DROPPED_RESPONSE_STATUS)
     return response

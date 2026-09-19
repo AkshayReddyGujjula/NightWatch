@@ -182,6 +182,7 @@ async def update_router(
             expected_generation=body.expected_generation,
             lease_id=body.lease_id,
             lease_expires_at=body.lease_expires_at,
+            handler_sha256=body.handler_sha256,
         )
     except StoreError as exc:
         raise _http_from_store_error(exc) from exc

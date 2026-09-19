@@ -15,6 +15,7 @@ from apps.contracts.base import (
     CandidateId,
     Hash256,
     IdStr,
+    IsoUtcDatetime,
     NonEmptyStr,
     ScenarioId,
     StrictModel,
@@ -332,7 +333,8 @@ class RouterUpdateRequest(StrictModel):
     mode: Literal["BUGGY", "SAFE_HOLD", "SAFE", "LEGACY"]
     expected_generation: Annotated[int, Field(ge=0)]
     lease_id: IdStr | None = None
-    lease_expires_at: UtcDatetime | None = None
+    lease_expires_at: IsoUtcDatetime | None = None
+    handler_sha256: Hash256 | None = None
 
 
 class StoreFacts(StrictModel):
@@ -346,4 +348,5 @@ class StoreFacts(StrictModel):
     idempotency_key: str | None = None
     confirmation_count: Annotated[int, Field(ge=0)]
     fulfillment_count: Annotated[int, Field(ge=0)]
-    stock_remaining: Annotated[int, Field(ge=0)]
+    # May go negative if a run oversells; the oracle reports it rather than 500-ing.
+    stock_remaining: int

@@ -8,12 +8,16 @@ Plan §7 and §16.1. Every external or model boundary is a strict Pydantic model
 
 | File | Contents |
 | --- | --- |
-| `base.py` | `StrictModel`, `Hash256`, `UtcDatetime`, `MonotonicNs`, id aliases |
+| `base.py` | `StrictModel`, `Hash256`, `GitSha40`, `UtcDatetime` / `IsoUtcDatetime`, id aliases, `canonical_sha256` |
 | `browser.py` | observation, Jev decision, `BrowserFrame`, barrier models |
-| `incident.py` · `payment.py` · `evaluation.py` · `lease.py` | arrive with the next Track A slices |
+| `incident.py` | events, capsule, `GeminiDiagnosis` + advisory triage (§10.4), `PatchProposal`, `CandidateSpec` |
+| `payment.py` | store rows, provider ledger rows, public store API (api.js names), router state/update, scoped tokens |
+| `evaluation.py` | S01–S08 registry models, invariant results, scenario/candidate evaluation, stage events |
+| `lease.py` | `RepairLease`, `RepairReceipt` |
 
-Frozen examples live in `fixtures/expected/**` and are guarded by
-`tests/unit/test_contract_browser.py` and
+Frozen examples live in `fixtures/expected/**` and `fixtures/scenarios.json`;
+guards are `tests/unit/test_contract_browser.py`,
+`tests/unit/test_contract_domain.py` and
 `tests/integration/test_internal_frames_contract.py`.
 
 ## `POST /internal/frames` (unblocks Track B)

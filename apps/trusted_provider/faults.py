@@ -42,7 +42,7 @@ class FaultSchedules:
                 INSERT INTO fault_schedules (namespace, fault, generation, consumed_at)
                 VALUES (?, ?, ?, NULL)
                 ON CONFLICT(namespace, fault) DO UPDATE SET
-                  generation = excluded.generation,
+                  generation = fault_schedules.generation + 1,
                   consumed_at = NULL
                 """,
                 (namespace, fault, generation),

@@ -49,6 +49,9 @@ async def test_g0_duplicate_capture_with_immutable_original(stack_factory) -> No
     repro: Stack = await stack_factory(namespace="ns_repro")
     await set_router_mode(repro, "SAFE", lease_id="lease_repro")
     await start_checkout(repro)
+    assert len((await read_ledger(repro))["captures"]) == 1, (
+        "the repaired path must capture exactly once"
+    )
 
     after_repro = await read_ledger(original)
     assert after_repro["digest"] == before["digest"]

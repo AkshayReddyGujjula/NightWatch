@@ -9,6 +9,7 @@
     "token": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Token",
       "type": "string"
     }

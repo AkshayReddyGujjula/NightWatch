@@ -7,6 +7,7 @@
           "items": {
             "maxLength": 512,
             "minLength": 1,
+            "pattern": "\\S",
             "type": "string"
           },
           "title": "Evidence Ids",
@@ -15,6 +16,7 @@
         "expected_summary": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Expected Summary",
           "type": "string"
         },
@@ -33,6 +35,7 @@
         "observed_summary": {
           "maxLength": 512,
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Observed Summary",
           "type": "string"
         },
@@ -131,10 +134,18 @@
       "items": {
         "maxLength": 512,
         "minLength": 1,
+        "pattern": "\\S",
         "type": "string"
       },
       "title": "Ledger Evidence Ids",
       "type": "array"
+    },
+    "oracle_code_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Oracle Code Hash",
+      "type": "string"
     },
     "scenario_id": {
       "enum": [
@@ -148,6 +159,13 @@
         "S08"
       ],
       "title": "Scenario Id",
+      "type": "string"
+    },
+    "scenario_registry_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Scenario Registry Hash",
       "type": "string"
     },
     "seed_hash": {
@@ -180,7 +198,9 @@
     "finished_at_utc",
     "capsule_sha256",
     "seed_hash",
-    "code_hash"
+    "code_hash",
+    "scenario_registry_hash",
+    "oracle_code_hash"
   ],
   "title": "ScenarioResult",
   "type": "object"

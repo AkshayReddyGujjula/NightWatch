@@ -19,7 +19,7 @@ import threading
 import uuid
 from datetime import UTC, datetime
 
-from apps.contracts.base import canonical_sha256
+from apps.contracts.base import canonical_sha256, sha256_hex
 from apps.contracts.payment import (
     CheckoutIntent,
     Currency,
@@ -94,9 +94,13 @@ CREATE TABLE IF NOT EXISTS router_state (
   bucket_seed TEXT NOT NULL,
   lease_id TEXT,
   lease_expires_at TEXT,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  buggy_locked INTEGER NOT NULL DEFAULT 0
 );
 """
+
+#: Stable handler hash for the containment mode; the router imports this too.
+SAFE_HOLD_HANDLER_HASH = sha256_hex(b"safe_hold:no-capture")
 
 
 class StoreError(Exception):
@@ -130,14 +134,32 @@ class Store:
         self._conn.row_factory = sqlite3.Row
         with self._lock, self._conn:
             self._conn.executescript(SCHEMA)
+            columns = {
+                row["name"] for row in self._conn.execute("PRAGMA table_info(router_state)")
+            }
+            if "buggy_locked" not in columns:
+                self._conn.execute(
+                    "ALTER TABLE router_state ADD COLUMN buggy_locked INTEGER NOT NULL DEFAULT 0"
+                )
             self._conn.execute(
                 """
                 INSERT OR IGNORE INTO router_state
                   (singleton, mode, generation, handler_hash, rollout_pct, bucket_seed,
-                   lease_id, lease_expires_at, updated_at)
-                VALUES (1, 'SAFE_HOLD', 1, ?, 0, ?, NULL, NULL, ?)
+                   lease_id, lease_expires_at, updated_at, buggy_locked)
+                VALUES (1, 'SAFE_HOLD', 1, ?, 0, ?, NULL, NULL, ?, 0)
                 """,
-                (canonical_sha256({"handler": "safe_hold"}), uuid.uuid4().hex, _now()),
+                (SAFE_HOLD_HANDLER_HASH, uuid.uuid4().hex, _now()),
+            )
+            # A process start is a restart: fail closed to SAFE_HOLD (plan §8.3).
+            # The buggy-lock ratchet survives restarts; only mode/lease reset.
+            self._conn.execute(
+                """
+                UPDATE router_state
+                SET mode = 'SAFE_HOLD', generation = generation + 1, handler_hash = ?,
+                    lease_id = NULL, lease_expires_at = NULL, updated_at = ?
+                WHERE singleton = 1
+                """,
+                (SAFE_HOLD_HANDLER_HASH, _now()),
             )
 
     @property
@@ -416,6 +438,13 @@ class Store:
             updated_at=_dt(row["updated_at"]),
         )
 
+    def buggy_locked(self) -> bool:
+        """One-way ratchet: once containment happened, BUGGY can never be re-armed."""
+        row = self._conn.execute(
+            "SELECT buggy_locked FROM router_state WHERE singleton = 1"
+        ).fetchone()
+        return bool(row["buggy_locked"])
+
     def set_router(
         self,
         *,
@@ -425,13 +454,20 @@ class Store:
         lease_id: str | None = None,
         lease_expires_at: datetime | None = None,
     ) -> RouterState:
-        """Compare-and-swap the router row; exactly one generation wins."""
+        """Compare-and-swap the router row; exactly one generation wins.
+
+        Any deliberate transition into SAFE_HOLD or SAFE latches ``buggy_locked``
+        permanently (plan §8.1: no transition returns to BUGGY).
+        """
         with self._lock, self._conn:
             cursor = self._conn.execute(
                 """
                 UPDATE router_state
                 SET mode = ?, generation = generation + 1, handler_hash = ?,
-                    lease_id = ?, lease_expires_at = ?, updated_at = ?
+                    lease_id = ?, lease_expires_at = ?,
+                    buggy_locked = CASE WHEN ? IN ('SAFE', 'SAFE_HOLD') THEN 1
+                                        ELSE buggy_locked END,
+                    updated_at = ?
                 WHERE singleton = 1 AND generation = ?
                 """,
                 (
@@ -439,6 +475,7 @@ class Store:
                     handler_hash,
                     lease_id,
                     lease_expires_at.isoformat() if lease_expires_at else None,
+                    mode,
                     _now(),
                     expected_generation,
                 ),

@@ -15,6 +15,7 @@ from apps.contracts.evaluation import (
     CandidateEvaluation,
     InvariantResult,
     ScenarioRegistry,
+    ScenarioResult,
 )
 from apps.contracts.incident import CandidateSpec, GeminiDiagnosis, PatchProposal
 from apps.contracts.lease import RepairLease, RepairReceipt
@@ -242,6 +243,72 @@ def test_candidate_evaluation_builds() -> None:
         started_at_utc=utc(14),
     )
     assert evaluation.verdict == "RUNNING"
+
+
+def test_invariant_evidence_rejects_blank_ids() -> None:
+    with pytest.raises(ValidationError):
+        InvariantResult(
+            invariant_id="INV-01",
+            status="PASS",
+            expected_summary="one capture",
+            observed_summary="one capture",
+            evidence_ids=["   "],
+        )
+
+
+def test_scenario_result_requires_registry_and_oracle_hashes() -> None:
+    payload: dict[str, Any] = {
+        "candidate_id": "B",
+        "scenario_id": "S01",
+        "status": "FAIL",
+        "started_at_utc": utc(14),
+        "finished_at_utc": utc(14, 1),
+        "capsule_sha256": HASH_A,
+        "seed_hash": HASH_A,
+        "code_hash": HASH_A,
+        "failure_reason": "no order",
+    }
+    with pytest.raises(ValidationError):
+        ScenarioResult(**payload)
+    result = ScenarioResult(
+        **payload, scenario_registry_hash=HASH_A, oracle_code_hash=HASH_B
+    )
+    assert result.status == "FAIL"
+
+
+def test_pass_scenario_requires_invariants() -> None:
+    with pytest.raises(ValidationError):
+        ScenarioResult(
+            candidate_id="B",
+            scenario_id="S01",
+            status="PASS",
+            started_at_utc=utc(14),
+            finished_at_utc=utc(14, 1),
+            capsule_sha256=HASH_A,
+            seed_hash=HASH_A,
+            code_hash=HASH_A,
+            scenario_registry_hash=HASH_A,
+            oracle_code_hash=HASH_A,
+        )
+
+
+def test_candidate_pass_requires_bound_evidence_hash() -> None:
+    with pytest.raises(ValidationError):
+        CandidateEvaluation(
+            candidate_id="B",
+            scenario_ids=["S01", "S02"],
+            invariant_ids=["INV-01", "INV-02"],
+            verdict="PASS",
+            started_at_utc=utc(14),
+        )
+    with pytest.raises(ValidationError):
+        CandidateEvaluation(
+            candidate_id="B",
+            scenario_ids=["S01", "S01"],
+            invariant_ids=["INV-01"],
+            verdict="RUNNING",
+            started_at_utc=utc(14),
+        )
 
 
 def test_frontend_field_readers_are_covered_by_store_contracts() -> None:

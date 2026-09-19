@@ -4,6 +4,7 @@
     "address": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Address",
       "type": "string"
     },

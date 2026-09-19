@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
+from apps.live_store.router import safe_handler_hash
 from tests.helpers import (
     CHECKOUT_BODY,
     LIVE_HEADERS,
     Stack,
     arm_fault,
+    pre_register,
     read_facts,
     read_ledger,
     set_router_mode,
@@ -73,6 +76,7 @@ async def test_s03_concurrent_submits_are_idempotent(stack_factory) -> None:
         json={"customer_id": "cust_test", "items": [{"sku": "SKU-A", "quantity": 1}]},
     )
     intent_id = created.json()["intent_id"]
+    await pre_register(stack, intent_id=intent_id, amount_minor=created.json()["amount_minor"])
 
     responses = await asyncio.gather(
         *(
@@ -180,3 +184,92 @@ async def test_router_generation_cas_rejects_stale_writers(stack_factory) -> Non
         headers=LIVE_HEADERS,
     )
     assert legacy.status_code == 409
+
+
+async def test_settled_order_is_never_overwritten(stack_factory) -> None:
+    stack: Stack = await stack_factory(namespace="ns_settled")
+    await set_router_mode(stack, "SAFE", lease_id="lease_test")
+    intent_id, body = await start_checkout(stack)
+    order_id = body["order_id"]
+
+    replay = await stack.store_client.post(
+        f"/api/checkout/{intent_id}",
+        json={**CHECKOUT_BODY, "voucher_code": "NIGHT10"},
+    )
+    assert replay.status_code == 200
+    assert replay.json()["status"] == "PAID"
+    assert len((await read_ledger(stack))["captures"]) == 1
+
+    refund = await stack.store_client.post(
+        "/api/refunds",
+        json={"order_id": order_id, "refund_intent_id": "ri_full", "amount_minor": 7999},
+    )
+    assert refund.json()["status"] == "REFUNDED_FULL"
+
+    after_refund = await stack.store_client.post(f"/api/checkout/{intent_id}", json=CHECKOUT_BODY)
+    assert after_refund.json()["status"] == "REFUNDED_FULL"
+    assert len((await read_ledger(stack))["captures"]) == 1
+
+
+async def test_buggy_cannot_be_rearmed_after_containment(stack_factory) -> None:
+    stack: Stack = await stack_factory(namespace="ns_rearm")
+    await set_router_mode(stack, "BUGGY")
+    await set_router_mode(stack, "SAFE_HOLD")
+
+    current = await stack.store_client.get("/internal/router", headers=LIVE_HEADERS)
+    attempt = await stack.store_client.put(
+        "/internal/router",
+        json={"mode": "BUGGY", "expected_generation": current.json()["generation"]},
+        headers=LIVE_HEADERS,
+    )
+    assert attempt.status_code == 409
+
+
+async def test_safe_requires_handler_hash_and_expiry(stack_factory) -> None:
+    stack: Stack = await stack_factory(namespace="ns_lease")
+    generation = (
+        await stack.store_client.get("/internal/router", headers=LIVE_HEADERS)
+    ).json()["generation"]
+
+    no_expiry = await stack.store_client.put(
+        "/internal/router",
+        json={"mode": "SAFE", "expected_generation": generation, "lease_id": "lease_x"},
+        headers=LIVE_HEADERS,
+    )
+    assert no_expiry.status_code == 422
+
+    wrong_hash = await stack.store_client.put(
+        "/internal/router",
+        json={
+            "mode": "SAFE",
+            "expected_generation": generation,
+            "lease_id": "lease_x",
+            "lease_expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+            "handler_sha256": "b" * 64,
+        },
+        headers=LIVE_HEADERS,
+    )
+    assert wrong_hash.status_code == 422
+
+
+async def test_expired_lease_falls_back_to_safe_hold(stack_factory) -> None:
+    stack: Stack = await stack_factory(namespace="ns_expiry")
+    generation = (
+        await stack.store_client.get("/internal/router", headers=LIVE_HEADERS)
+    ).json()["generation"]
+    response = await stack.store_client.put(
+        "/internal/router",
+        json={
+            "mode": "SAFE",
+            "expected_generation": generation,
+            "lease_id": "lease_exp",
+            "lease_expires_at": (datetime.now(UTC) + timedelta(seconds=1)).isoformat(),
+            "handler_sha256": safe_handler_hash(),
+        },
+        headers=LIVE_HEADERS,
+    )
+    assert response.status_code == 200, response.text
+
+    await asyncio.sleep(1.2)
+    state = await stack.store_client.get("/internal/router", headers=LIVE_HEADERS)
+    assert state.json()["mode"] == "SAFE_HOLD"

@@ -6,6 +6,7 @@
       "items": {
         "maxLength": 512,
         "minLength": 1,
+        "pattern": "\\S",
         "type": "string"
       },
       "title": "Failed Probe Ids",
@@ -43,6 +44,7 @@
       "items": {
         "maxLength": 512,
         "minLength": 1,
+        "pattern": "\\S",
         "type": "string"
       },
       "title": "Routed Bucket Ids",

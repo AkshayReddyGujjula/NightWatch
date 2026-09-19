@@ -25,6 +25,8 @@ from apps.live_store.store import CURRENCY, VOUCHERS, Store, StoreError
 
 __all__ = ["perform_checkout"]
 
+_SETTLED_ORDER_STATUSES = {"PAID", "REFUNDED_PARTIAL", "REFUNDED_FULL", "QUARANTINED"}
+
 _OUTCOME_ORDER_STATUS: dict[str, OrderStatus] = {
     "PENDING_CONFIRMATION": "PENDING_CONFIRMATION",
     "QUARANTINED": "QUARANTINED",
@@ -69,6 +71,35 @@ async def perform_checkout(
         )
 
     order, operation = store.get_or_create_order_and_operation(intent_id, total)
+
+    # A settled order is never mutated by a later checkout; replayed checkouts
+    # return the stored truth (plan INV-02: PAID/DECLINED/refunded states are
+    # authoritative, and a second attempt must not "downgrade" them).
+    if order.status in _SETTLED_ORDER_STATUSES:
+        return CheckoutResponse(
+            order_id=order.order_id,
+            intent_id=order.intent_id,
+            status=order.status,
+            amount_minor=order.amount_minor,
+            currency=CURRENCY,
+            message="Already settled; no new payment attempt was made.",
+        )
+
+    # Re-check containment immediately before any capture can fire: a Safe Stop
+    # that won the race must stop this attempt (plan §8.4). The remaining window
+    # narrows to the provider call itself; full operation-stamping arrives with
+    # the lease slice.
+    mode = router.state().mode
+    if mode == "SAFE_HOLD":
+        return CheckoutResponse(
+            order_id=None,
+            intent_id=intent_id,
+            status="SAFE_HOLD",
+            amount_minor=total,
+            currency=CURRENCY,
+            message="New payments are held for review; nothing was captured for this attempt.",
+        )
+
     items = store.get_intent_items(intent_id)
     sku = items[0].sku if items else "SKU-A"
     quantity = sum(item.quantity for item in items) or 1

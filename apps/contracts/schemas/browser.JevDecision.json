@@ -22,6 +22,7 @@
     "model_name": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Model Name",
       "type": "string"
     },

@@ -14,6 +14,7 @@
     "idempotency_key": {
       "maxLength": 512,
       "minLength": 1,
+      "pattern": "\\S",
       "title": "Idempotency Key",
       "type": "string"
     },
