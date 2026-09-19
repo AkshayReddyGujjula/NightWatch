@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "expires_after": "2h",
+  "idle_timeout": "20m",
+  "allow": {
+    "tools": [
+      "start_session",
+      "end_session",
+      "launch_app",
+      "list_windows",
+      "browser_prepare",
+      "get_browser_state",
+      "browser_navigate",
+      "browser_click",
+      "browser_type"
+    ]
+  },
+  "resources": {
+    "browser": {
+      "profiles": [
+        {
+          "kind": "isolated"
+        }
+      ],
+      "origins": [
+        "http://127.0.0.1:8080"
+      ]
+    },
+    "desktop": {
+      "display": false
+    }
+  }
+}
