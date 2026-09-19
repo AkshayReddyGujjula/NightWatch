@@ -146,23 +146,43 @@ def _apply_outcome(
     quantity: int,
 ) -> CheckoutResponse:
     if outcome.status == "PAID":
-        store.mark_paid(order.order_id, operation.operation_id, sku, quantity)
+        if store.mark_paid(order.order_id, operation.operation_id, sku, quantity):
+            return CheckoutResponse(
+                order_id=order.order_id,
+                intent_id=order.intent_id,
+                status="PAID",
+                amount_minor=total,
+                currency=CURRENCY,
+                message=None,
+            )
+        settled = store.get_order(order.order_id)
+        return CheckoutResponse(
+            order_id=settled.order_id,
+            intent_id=settled.intent_id,
+            status=settled.status,
+            amount_minor=settled.amount_minor,
+            currency=CURRENCY,
+            message="Settled by a concurrent outcome; no new payment state was applied.",
+        )
+    status = _OUTCOME_ORDER_STATUS[outcome.status]
+    if store.set_order_status_if_unsettled(order.order_id, status):
+        store.set_operation_state(
+            operation.operation_id, _OUTCOME_OPERATION_STATE[outcome.status]
+        )
         return CheckoutResponse(
             order_id=order.order_id,
             intent_id=order.intent_id,
-            status="PAID",
+            status=status,
             amount_minor=total,
             currency=CURRENCY,
-            message=None,
+            message=outcome.reason,
         )
-    status = _OUTCOME_ORDER_STATUS[outcome.status]
-    store.set_order_status(order.order_id, status)
-    store.set_operation_state(operation.operation_id, _OUTCOME_OPERATION_STATE[outcome.status])
+    settled = store.get_order(order.order_id)
     return CheckoutResponse(
-        order_id=order.order_id,
-        intent_id=order.intent_id,
-        status=status,
-        amount_minor=total,
+        order_id=settled.order_id,
+        intent_id=settled.intent_id,
+        status=settled.status,
+        amount_minor=settled.amount_minor,
         currency=CURRENCY,
-        message=outcome.reason,
+        message="Settled by a concurrent outcome; no new payment state was applied.",
     )

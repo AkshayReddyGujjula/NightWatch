@@ -156,7 +156,9 @@ class Store:
                 """
                 UPDATE router_state
                 SET mode = 'SAFE_HOLD', generation = generation + 1, handler_hash = ?,
-                    lease_id = NULL, lease_expires_at = NULL, updated_at = ?
+                    lease_id = NULL, lease_expires_at = NULL,
+                    buggy_locked = CASE WHEN mode = 'SAFE' THEN 1 ELSE buggy_locked END,
+                    updated_at = ?
                 WHERE singleton = 1
                 """,
                 (SAFE_HOLD_HANDLER_HASH, _now()),
@@ -314,18 +316,40 @@ class Store:
         if cursor.rowcount != 1:
             raise StoreError(404, f"unknown order {order_id!r}")
 
-    def mark_paid(self, order_id: str, operation_id: str, sku: str, quantity: int) -> None:
-        """PAID + one confirmation + exactly one fulfillment, atomically."""
+    def set_order_status_if_unsettled(self, order_id: str, status: OrderStatus) -> bool:
+        """CAS: a late in-flight outcome may never overwrite a settled order."""
+        with self._lock, self._conn:
+            cursor = self._conn.execute(
+                """
+                UPDATE orders SET status = ?, updated_at = ?
+                WHERE order_id = ?
+                  AND status NOT IN ('PAID', 'REFUNDED_PARTIAL', 'REFUNDED_FULL', 'QUARANTINED')
+                """,
+                (status, _now(), order_id),
+            )
+        return cursor.rowcount == 1
+
+    def mark_paid(self, order_id: str, operation_id: str, sku: str, quantity: int) -> bool:
+        """PAID + one confirmation + exactly one fulfillment, atomically.
+
+        Returns False when a concurrent outcome already settled the order
+        (refunded or quarantined); nothing is written in that case.
+        """
         with self._lock, self._conn:
             self._conn.execute("BEGIN IMMEDIATE")
             try:
                 now = _now()
                 cursor = self._conn.execute(
-                    "UPDATE orders SET status = 'PAID', updated_at = ? WHERE order_id = ?",
+                    """
+                    UPDATE orders SET status = 'PAID', updated_at = ?
+                    WHERE order_id = ?
+                      AND status NOT IN ('REFUNDED_PARTIAL', 'REFUNDED_FULL', 'QUARANTINED')
+                    """,
                     (now, order_id),
                 )
                 if cursor.rowcount != 1:
-                    raise StoreError(404, f"unknown order {order_id!r}")
+                    self._conn.execute("ROLLBACK")
+                    return False
                 self._conn.execute(
                     "INSERT OR IGNORE INTO confirmations (confirmation_id, order_id, created_at)"
                     " VALUES (?, ?, ?)",
@@ -348,6 +372,7 @@ class Store:
                 raise
             else:
                 self._conn.execute("COMMIT")
+        return True
 
     def set_operation_key(self, operation_id: str, idempotency_key: str) -> None:
         with self._lock, self._conn:

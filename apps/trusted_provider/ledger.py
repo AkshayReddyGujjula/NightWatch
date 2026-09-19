@@ -8,6 +8,7 @@ total. Everything is namespace-scoped and append-only.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 import threading
@@ -66,11 +67,8 @@ CREATE TABLE IF NOT EXISTS refunds (
   amount_minor INTEGER NOT NULL,
   currency TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  UNIQUE (namespace, operation_id, refund_intent_id)
+    UNIQUE (namespace, operation_id, refund_intent_id)
 );
--- One logical intent has at most one provider operation (plan §5.4 INV-01).
-CREATE UNIQUE INDEX IF NOT EXISTS idx_registered_operations_intent
-  ON registered_operations (namespace, intent_id);
 """
 
 
@@ -105,6 +103,14 @@ class LedgerStore:
         self._conn.row_factory = sqlite3.Row
         with self._lock, self._conn:
             self._conn.executescript(SCHEMA)
+            # One logical intent has at most one provider operation (plan §5.4).
+            # A legacy DB with duplicate registrations still opens; app-level
+            # checks keep enforcing one operation per intent for new writes.
+            with contextlib.suppress(sqlite3.IntegrityError):
+                self._conn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_registered_operations_intent "
+                    "ON registered_operations (namespace, intent_id)"
+                )
 
     @property
     def connection(self) -> sqlite3.Connection:

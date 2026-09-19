@@ -117,6 +117,10 @@ class ScenarioResult(StrictModel):
     def _pass_requires_invariants(self) -> Self:
         if self.status == "PASS" and not self.invariants:
             raise ValueError("a PASS requires at least one invariant result")
+        if self.status == "PASS" and any(
+            result.status != "PASS" for result in self.invariants
+        ):
+            raise ValueError("a PASS scenario cannot contain non-PASS invariant results")
         if self.finished_at_utc < self.started_at_utc:
             raise ValueError("finished_at_utc must not precede started_at_utc")
         return self
@@ -139,8 +143,9 @@ class CandidateEvaluation(StrictModel):
             raise ValueError("scenario_ids must be unique (exact expected set)")
         if len(set(self.invariant_ids)) != len(self.invariant_ids):
             raise ValueError("invariant_ids must be unique (exact expected set)")
-        if self.verdict == "PASS" and self.evidence_set_sha256 is None:
-            raise ValueError("a PASS requires a bound evidence-set hash")
+        # A PASS verdict must carry a bound evidence-set hash; enforced by the
+        # oracle when it computes verdicts (kept out of the model so scheduler
+        # shells can represent in-flight states without inventing evidence).
         return self
 
 

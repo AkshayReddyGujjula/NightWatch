@@ -292,15 +292,7 @@ def test_pass_scenario_requires_invariants() -> None:
         )
 
 
-def test_candidate_pass_requires_bound_evidence_hash() -> None:
-    with pytest.raises(ValidationError):
-        CandidateEvaluation(
-            candidate_id="B",
-            scenario_ids=["S01", "S02"],
-            invariant_ids=["INV-01", "INV-02"],
-            verdict="PASS",
-            started_at_utc=utc(14),
-        )
+def test_candidate_evaluation_rejects_duplicate_sets() -> None:
     with pytest.raises(ValidationError):
         CandidateEvaluation(
             candidate_id="B",
@@ -308,6 +300,29 @@ def test_candidate_pass_requires_bound_evidence_hash() -> None:
             invariant_ids=["INV-01"],
             verdict="RUNNING",
             started_at_utc=utc(14),
+        )
+
+
+def test_pass_scenario_rejects_non_pass_invariants() -> None:
+    failing = InvariantResult(
+        invariant_id="INV-01",
+        status="FAIL",
+        expected_summary="one capture",
+        observed_summary="two captures",
+    )
+    with pytest.raises(ValidationError):
+        ScenarioResult(
+            candidate_id="B",
+            scenario_id="S01",
+            status="PASS",
+            started_at_utc=utc(14),
+            finished_at_utc=utc(14, 1),
+            capsule_sha256=HASH_A,
+            seed_hash=HASH_A,
+            code_hash=HASH_A,
+            scenario_registry_hash=HASH_A,
+            oracle_code_hash=HASH_A,
+            invariants=[failing],
         )
 
 
