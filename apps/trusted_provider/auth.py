@@ -63,6 +63,12 @@ def verify_token(
         supplied = _b64_decode(signature_b64)
     except Exception as exc:  # noqa: BLE001 - any decode failure is a malformed token
         raise TokenError("malformed token signature") from exc
+    # URL-safe base64 without padding can have multiple textual spellings for
+    # the same bytes when the unused tail bits are changed. Reject those
+    # non-canonical spellings before comparing the decoded signature so a
+    # changed token string is always treated as tampering.
+    if _b64_encode(supplied) != signature_b64:
+        raise TokenError("malformed token signature")
     if not hmac.compare_digest(supplied, _sign(payload_b64, signing_secret)):
         raise TokenError("token signature does not verify")
     try:
