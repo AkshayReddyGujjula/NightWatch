@@ -23,4 +23,12 @@ export const routes = {
   incidentEvents: (incidentId: string) => `${incidentPath(incidentId)}/events`,
   /** `GET /api/runs/{run_id}/evaluations` — committed matrix source. */
   runEvaluations: (runId: string) => `${API_ROOT}/runs/${encodeURIComponent(runId)}/evaluations`,
+  /**
+   * `GET /api/runs/{run_id}/frames/{candidate_id}/latest?after={seq}` — latest
+   * run-bound frame bytes for one candidate (plan §11.7). `afterSeq` is omitted
+   * when no committed sequence is known yet: the wall never invents one.
+   */
+  runFrameLatest: (runId: string, candidateId: string, afterSeq: number | null) =>
+    `${API_ROOT}/runs/${encodeURIComponent(runId)}/frames/${encodeURIComponent(candidateId)}/latest` +
+    (afterSeq === null ? "" : `?after=${afterSeq}`),
 } as const;

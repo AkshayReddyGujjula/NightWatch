@@ -187,6 +187,143 @@ th {
   color: var(--warn);
 }
 
+.badge.pass {
+  background: #12301f;
+  color: var(--pass);
+}
+
+.badge.fail {
+  background: #331717;
+  color: var(--fail);
+}
+
+.badge.warn {
+  background: #33280f;
+  color: var(--warn);
+}
+
+.frame-wall {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.frame-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d131b;
+}
+
+.tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tile-candidate {
+  font: 600 12px var(--mono);
+  letter-spacing: 1px;
+}
+
+.frame-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #080c11;
+  overflow: hidden;
+}
+
+.frame-stage.stalled {
+  border-color: #4a3a12;
+}
+
+.frame-stage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.frame-none {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.frame-none strong {
+  color: var(--ink);
+  font: 600 12px var(--mono);
+}
+
+.frame-none.error strong {
+  color: var(--fail);
+}
+
+.frame-reason {
+  overflow-wrap: anywhere;
+}
+
+.frame-overlay {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(8, 12, 17, 0.82);
+  color: var(--ink);
+  font: 600 10px var(--mono);
+  letter-spacing: 0.5px;
+}
+
+.frame-stage.stalled .frame-overlay {
+  color: var(--warn);
+}
+
+.tile-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.tile-facts > div {
+  display: flex;
+  gap: 8px;
+}
+
+.tile-facts dt {
+  flex: 0 0 96px;
+  padding-top: 2px;
+  color: var(--muted);
+  font: 600 10px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.tile-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .footer {
   padding: 12px 22px;
   border-top: 1px solid var(--line);
@@ -196,6 +333,10 @@ th {
 
 @media (max-width: 1000px) {
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .frame-wall {
     grid-template-columns: 1fr;
   }
 }
