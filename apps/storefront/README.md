@@ -41,10 +41,10 @@ Money display never invents a result: `PENDING_CONFIRMATION`, `SAFE_HOLD` and
 
 ## Local preview (no backend)
 
-```pwsh
-uv run python -m http.server 8123 -b 127.0.0.1 --directory apps/storefront
-# then open http://127.0.0.1:8123/checkout-x.html and /checkout-y.html
-```
+The real storefront server is the Modal-hosted `live_store` (Track A). Any
+local port (e.g. `uv run python -m http.server <port> --directory
+apps/storefront`) is throwaway dev tooling only — never part of a demo run,
+receipt or screenshot.
 
 Pages render fully without the API; calls fail visibly with an error banner.
 

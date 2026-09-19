@@ -3,10 +3,11 @@
 // NightMart storefront API adapter (NightWatch Track B, apps/storefront).
 //
 // Endpoint shapes follow Final-nightwatch-plan.md §9.2 (public store API).
+// Nothing outside this file may depend on these shapes until the freeze
+// reconciles them against apps/contracts/** and apps/live_store/**.
 // FROZEN-CONTRACT NOTE (contract freeze, T+0:20): this file is the ONLY place
 // in apps/storefront that knows request/response field names. Reconcile them
-// against apps/contracts/** and apps/live_store/** at the freeze; never edit
-// field names in the pages.
+// at the freeze; never edit field names in the pages.
 const StoreAPI = (() => {
   async function request(path, options = {}) {
     const response = await fetch(path, {
