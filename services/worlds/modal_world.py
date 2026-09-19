@@ -55,11 +55,12 @@ class ModalWorld:
         self._app = app
         self._payload = payload
         self.environment = environment
-        self.image_digest = DESKTOP_IMAGE.object_id or "unresolved"
+        self.image_digest: str | None = None
         self._timeout_s = timeout_s
         self._idle_timeout_s = idle_timeout_s
         self._bootstrap_timeout_s = bootstrap_timeout_s
         self._sandbox: modal.Sandbox | None = None
+        self._sandbox_id: str | None = None
         self._world_evidence: dict[str, Any] = {}
         self._candidate_id = ""
         self.created_monotonic_ns: int | None = None
@@ -79,7 +80,13 @@ class ModalWorld:
             idle_timeout=self._idle_timeout_s,
         )
         self._sandbox = sandbox
+        self._sandbox_id = sandbox.object_id
         self.created_monotonic_ns = created_ns
+        try:
+            self.image_digest = DESKTOP_IMAGE.object_id
+        except AttributeError:
+            # The image is hydrated only after the backend resolves it.
+            self.image_digest = "unresolved"
         try:
             for remote_path, content in self._payload.files.items():
                 self._write_file(remote_path, content)
@@ -140,7 +147,10 @@ class ModalWorld:
 
     @property
     def sandbox_id(self) -> str | None:
-        return self._sandbox.object_id if self._sandbox is not None else None
+        """The sandbox id, kept after teardown so lifecycle records stay complete."""
+        if self._sandbox is not None:
+            return self._sandbox.object_id
+        return self._sandbox_id
 
     @property
     def world_evidence(self) -> dict[str, Any]:

@@ -92,7 +92,33 @@ Impact on frozen wire contracts: none - checkout hygiene only.
    lands in Track A's next slice (trusted-service deployment); the seam shape is
    frozen now so `modal/services_b.py` can proceed without waiting.
 
-2. **`.gitattributes`** — accepted and applied by Track A in this commit:
+2. **`.gitattributes`** - accepted and applied by Track A in this commit:
    `* text=auto` and `*.sh text eol=lf`.
 
 **Wire impact:** none.
+
+## 2026-09-19 — Track B: import-mechanics correction to the frozen App seam (no Track A action)
+
+**By:** Track B (Akshay) · **Status:** recorded · **Wire impact:** none
+
+The seam *shape* is unchanged — `services_a.py` owns the single
+`app = modal.App("nightwatch")`, `services_b.py` binds `run_candidate` to it,
+`modal_app.py` is wiring only — but the literal spelling
+`from modal.services_a import app` cannot resolve in this repository. The
+installed `modal` SDK is a regular package and always shadows the repository's
+`modal/` directory (a namespace portion). Verified live on this laptop:
+
+```text
+from modal.services_x import x  ->  ModuleNotFoundError: No module named 'modal.services_x'
+import modal                    ->  <repo>/.venv/Lib/site-packages/modal/__init__.py
+```
+
+Mechanical correction, contained to Track B-owned files:
+
+- `modal_app.py` inserts `<repo>/modal` on `sys.path` and imports `services_a`
+  and `services_b` by top-level module name;
+- `modal/services_b.py` imports `from services_a import app`.
+
+`modal/services_a.py` needs **no change**: it still defines `app` and binds its
+four functions; it imports nothing from Track B. Paths, ownership and the
+one-App rule are untouched; no second `modal.App` may exist.
