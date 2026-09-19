@@ -1,0 +1,27 @@
+{
+  "run_id": "run_20260919_1330",
+  "generation": 1,
+  "expected_candidates": ["A", "B", "C"],
+  "ready": [
+    {
+      "candidate_id": "A",
+      "sandbox_id": "sb-1a2b3c4d5e6f",
+      "session_hash": "1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809"
+    },
+    {
+      "candidate_id": "B",
+      "sandbox_id": "sb-9f2c1e4a7b3d",
+      "session_hash": "2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a"
+    },
+    {
+      "candidate_id": "C",
+      "sandbox_id": "sb-6c7d8e9f0a1b",
+      "session_hash": "3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b"
+    }
+  ],
+  "status": "RELEASED",
+  "timeout_seconds": 120.0,
+  "deadline_at_utc": "2026-09-19T13:07:00Z",
+  "released_at_utc": "2026-09-19T13:05:02Z",
+  "timed_out_at_utc": null
+}

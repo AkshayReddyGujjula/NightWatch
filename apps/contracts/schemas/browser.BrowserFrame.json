@@ -1,0 +1,171 @@
+{
+  "additionalProperties": false,
+  "description": "Frame metadata for ``POST /internal/frames`` (plan \u00a77.1, \u00a711.7).\n\n``image_sha256`` is the frame's canonical identity; the binary image travels\nas the separately hashed multipart part and never enters SQLite.",
+  "properties": {
+    "candidate_id": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ],
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "capture_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Capture Id"
+    },
+    "captured_at_utc": {
+      "format": "date-time",
+      "title": "Captured At Utc",
+      "type": "string"
+    },
+    "captured_monotonic_ns": {
+      "minimum": 0,
+      "title": "Captured Monotonic Ns",
+      "type": "integer"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Confidence"
+    },
+    "cua_session_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Cua Session Id",
+      "type": "string"
+    },
+    "frame_seq": {
+      "minimum": 0,
+      "title": "Frame Seq",
+      "type": "integer"
+    },
+    "image_mime": {
+      "enum": [
+        "image/jpeg",
+        "image/webp"
+      ],
+      "title": "Image Mime",
+      "type": "string"
+    },
+    "image_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Image Sha256",
+      "type": "string"
+    },
+    "image_size_bytes": {
+      "exclusiveMinimum": 0,
+      "maximum": 358400,
+      "title": "Image Size Bytes",
+      "type": "integer"
+    },
+    "jev_decision_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Jev Decision Id"
+    },
+    "phase": {
+      "enum": [
+        "SAMPLE",
+        "BEFORE_ACTION",
+        "AFTER_ACTION",
+        "TERMINAL"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "sandbox_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Sandbox Id",
+      "type": "string"
+    },
+    "scenario_id": {
+      "enum": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08"
+      ],
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "selected_action_label": {
+      "anyOf": [
+        {
+          "maxLength": 160,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selected Action Label"
+    },
+    "snapshot_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Snapshot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "candidate_id",
+    "scenario_id",
+    "frame_seq",
+    "sandbox_id",
+    "cua_session_id",
+    "snapshot_id",
+    "phase",
+    "captured_monotonic_ns",
+    "captured_at_utc",
+    "image_sha256",
+    "image_size_bytes",
+    "image_mime"
+  ],
+  "title": "BrowserFrame",
+  "type": "object"
+}

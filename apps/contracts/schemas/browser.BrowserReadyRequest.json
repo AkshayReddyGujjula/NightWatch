@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "description": "Body of ``POST /internal/worlds/{candidate_id}/browser-ready`` (plan \u00a79.1).\n\n``session_hash`` binds the readiness to one world session:\n``sha256(\"{run_id}|{candidate_id}|{sandbox_id}|{cua_session_id}\")``.",
+  "properties": {
+    "cua_session_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Cua Session Id",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "sandbox_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Sandbox Id",
+      "type": "string"
+    },
+    "session_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Session Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "sandbox_id",
+    "cua_session_id",
+    "session_hash"
+  ],
+  "title": "BrowserReadyRequest",
+  "type": "object"
+}

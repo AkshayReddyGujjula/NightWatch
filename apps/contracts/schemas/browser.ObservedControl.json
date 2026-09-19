@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "description": "One visible, enabled control offered to Jev (plan \u00a711.2).",
+  "properties": {
+    "action_id": {
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "title": "Action Id",
+      "type": "string"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "name": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "purpose": {
+      "default": "other",
+      "enum": [
+        "submit",
+        "email",
+        "address",
+        "voucher",
+        "quantity",
+        "sku",
+        "other"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "role": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action_id",
+    "role",
+    "name",
+    "enabled"
+  ],
+  "title": "ObservedControl",
+  "type": "object"
+}

@@ -1,0 +1,82 @@
+{
+  "additionalProperties": false,
+  "description": "One typed action choice returned by TypeSafe and validated by code (plan \u00a711.3).",
+  "properties": {
+    "chosen_action_id": {
+      "pattern": "^[a-z][a-z0-9_]{0,63}$",
+      "title": "Chosen Action Id",
+      "type": "string"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "decision_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Decision Id",
+      "type": "string"
+    },
+    "model_name": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Model Name",
+      "type": "string"
+    },
+    "observation_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Observation Hash",
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "click",
+        "type",
+        "select",
+        "reobserve",
+        "abstain",
+        "done_unverified"
+      ],
+      "title": "Operation",
+      "type": "string"
+    },
+    "probabilities": {
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,63}$": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "title": "Probabilities",
+      "type": "object"
+    },
+    "provider_request_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Provider Request Id"
+    }
+  },
+  "required": [
+    "decision_id",
+    "chosen_action_id",
+    "operation",
+    "model_name",
+    "confidence",
+    "probabilities",
+    "observation_hash"
+  ],
+  "title": "JevDecision",
+  "type": "object"
+}

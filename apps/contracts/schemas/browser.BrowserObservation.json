@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "ObservedControl": {
+      "additionalProperties": false,
+      "description": "One visible, enabled control offered to Jev (plan \u00a711.2).",
+      "properties": {
+        "action_id": {
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "title": "Action Id",
+          "type": "string"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "purpose": {
+          "default": "other",
+          "enum": [
+            "submit",
+            "email",
+            "address",
+            "voucher",
+            "quantity",
+            "sku",
+            "other"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "role": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "role",
+        "name",
+        "enabled"
+      ],
+      "title": "ObservedControl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Compact semantic snapshot; page text is untrusted data (plan \u00a711.2).",
+  "properties": {
+    "completed_postconditions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Completed Postconditions",
+      "type": "array"
+    },
+    "controls": {
+      "items": {
+        "$ref": "#/$defs/ObservedControl"
+      },
+      "title": "Controls",
+      "type": "array"
+    },
+    "goal": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Goal",
+      "type": "string"
+    },
+    "heading": {
+      "title": "Heading",
+      "type": "string"
+    },
+    "observation_hash": {
+      "maxLength": 64,
+      "minLength": 64,
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Observation Hash",
+      "type": "string"
+    },
+    "origin": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Origin",
+      "type": "string"
+    },
+    "page_generation": {
+      "minimum": 0,
+      "title": "Page Generation",
+      "type": "integer"
+    },
+    "status_text": {
+      "title": "Status Text",
+      "type": "string"
+    },
+    "url": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Url",
+      "type": "string"
+    }
+  },
+  "required": [
+    "goal",
+    "origin",
+    "url",
+    "page_generation",
+    "heading",
+    "status_text",
+    "observation_hash"
+  ],
+  "title": "BrowserObservation",
+  "type": "object"
+}

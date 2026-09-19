@@ -1,0 +1,19 @@
+{
+  "run_id": "run_20260919_1330",
+  "candidate_id": "B",
+  "scenario_id": "S02",
+  "frame_seq": 7,
+  "sandbox_id": "sb-9f2c1e4a7b3d",
+  "cua_session_id": "cua-4d8e1f6a",
+  "snapshot_id": "snap-31c4a9",
+  "capture_id": "cap-77f011",
+  "phase": "AFTER_ACTION",
+  "captured_monotonic_ns": 4123000000,
+  "captured_at_utc": "2026-09-19T13:05:00Z",
+  "image_sha256": "9d3c6b1a4e8f2c5d7b0a1f3e6c9d2b5a8e1f4c7d0a3b6e9f2c5d8b1e4a7c0f3d",
+  "image_size_bytes": 204800,
+  "image_mime": "image/jpeg",
+  "jev_decision_id": "dec-0007",
+  "selected_action_label": "Click \"Pay now\"",
+  "confidence": 0.27
+}

@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-ai-slim[google,typesafe]",
     "modal",
     "httpx",
+    "python-multipart>=0.0.32",
 ]
 
 [dependency-groups]

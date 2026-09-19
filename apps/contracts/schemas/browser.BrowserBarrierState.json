@@ -1,0 +1,135 @@
+{
+  "$defs": {
+    "ReadyWorld": {
+      "additionalProperties": false,
+      "description": "One candidate world that has registered readiness for a generation.",
+      "properties": {
+        "candidate_id": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ],
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "sandbox_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Sandbox Id",
+          "type": "string"
+        },
+        "session_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Session Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "sandbox_id",
+        "session_hash"
+      ],
+      "title": "ReadyWorld",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Barrier state returned by ready posts and ``GET .../browser-barrier`` (plan \u00a712.2).",
+  "properties": {
+    "deadline_at_utc": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Deadline At Utc"
+    },
+    "expected_candidates": {
+      "items": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "type": "string"
+      },
+      "title": "Expected Candidates",
+      "type": "array"
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "ready": {
+      "items": {
+        "$ref": "#/$defs/ReadyWorld"
+      },
+      "title": "Ready",
+      "type": "array"
+    },
+    "released_at_utc": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Released At Utc"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PENDING",
+        "RELEASED",
+        "TIMEOUT"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "timed_out_at_utc": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Timed Out At Utc"
+    },
+    "timeout_seconds": {
+      "default": 120.0,
+      "exclusiveMinimum": 0,
+      "title": "Timeout Seconds",
+      "type": "number"
+    }
+  },
+  "required": [
+    "run_id",
+    "generation",
+    "expected_candidates",
+    "status"
+  ],
+  "title": "BrowserBarrierState",
+  "type": "object"
+}

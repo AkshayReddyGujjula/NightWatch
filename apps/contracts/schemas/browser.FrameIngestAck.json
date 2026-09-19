@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "description": "Response body of ``POST /internal/frames``.",
+  "properties": {
+    "candidate_id": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ],
+      "title": "Candidate Id",
+      "type": "string"
+    },
+    "frame_seq": {
+      "minimum": 0,
+      "title": "Frame Seq",
+      "type": "integer"
+    },
+    "latest_seq": {
+      "minimum": 0,
+      "title": "Latest Seq",
+      "type": "integer"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "candidate_id",
+    "frame_seq",
+    "latest_seq"
+  ],
+  "title": "FrameIngestAck",
+  "type": "object"
+}
