@@ -299,6 +299,14 @@ class Store:
             raise StoreError(404, f"unknown order {order_id!r}")
         return self._order(row)
 
+    def get_order_for_intent(self, intent_id: str) -> Order:
+        row = self._conn.execute(
+            "SELECT * FROM orders WHERE intent_id = ?", (intent_id,)
+        ).fetchone()
+        if row is None:
+            raise StoreError(404, f"no order for intent {intent_id!r}")
+        return self._order(row)
+
     def get_operation_for_intent(self, intent_id: str) -> PaymentOperation:
         row = self._conn.execute(
             "SELECT * FROM payment_operations WHERE intent_id = ?", (intent_id,)

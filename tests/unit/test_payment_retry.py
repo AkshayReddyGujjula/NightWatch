@@ -92,6 +92,7 @@ async def test_buggy_retries_with_a_fresh_key_after_a_lost_response() -> None:
     assert outcome.idempotency_key == "key_2"
     assert outcome.reason is not None
     assert "You were charged twice" in outcome.reason
+    assert outcome.captured_total_minor == 15998
     assert provider.calls == ["key_1", "key_2", "inquiry:op_1"]
 
 

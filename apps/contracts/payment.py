@@ -128,6 +128,7 @@ class CheckoutResponse(StrictModel):
     intent_id: IdStr
     status: OrderStatus
     amount_minor: int | None = None
+    captured_total_minor: int | None = None
     currency: Currency = "GBP"
     message: str | None = None
 

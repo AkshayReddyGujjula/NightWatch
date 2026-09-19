@@ -20,4 +20,7 @@ if (-not $chrome) { throw 'Google Chrome was not found.' }
 if (($Action -eq 'demo' -or $Action -eq 'reset') -and $result.checkout_url) {
   Start-Process -FilePath $chrome -ArgumentList $result.checkout_url
 }
+if ($Action -eq 'cyber' -and $result.store_url) {
+  Start-Process -FilePath $chrome -ArgumentList $result.store_url
+}
 Start-Process -FilePath $chrome -ArgumentList 'http://127.0.0.1:8765/'

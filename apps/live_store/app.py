@@ -14,7 +14,7 @@ from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -61,6 +61,18 @@ class DoubleChargeDemoResponse(StrictModel):
     checkout_x_url: NonEmptyStr
     checkout_y_url: NonEmptyStr
     router: RouterState
+
+
+class DemoOutageRequest(StrictModel):
+    active: bool
+
+
+class DemoRefundResponse(StrictModel):
+    order_id: NonEmptyStr
+    intent_id: NonEmptyStr
+    refund_amount_minor: int
+    net_charged_minor: int
+    status: Literal["REFUNDED_PARTIAL", "REFUNDED_FULL"]
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -202,6 +214,54 @@ async def reset_live_store(
     return request.app.state.router.state()
 
 
+@router.put("/internal/demo/outage")
+async def set_demo_outage(
+    body: DemoOutageRequest,
+    request: Request,
+    _: Annotated[None, Depends(require_live_internal)],
+) -> dict[str, bool]:
+    """Deterministic, reversible public outage for the isolated stage demo."""
+    request.app.state.demo_outage_active = body.active
+    return {"active": body.active}
+
+
+@router.post(
+    "/internal/demo/refund-duplicate/{intent_id}",
+    response_model=DemoRefundResponse,
+)
+async def refund_duplicate_demo(
+    intent_id: str,
+    request: Request,
+    _: Annotated[None, Depends(require_live_internal)],
+) -> DemoRefundResponse:
+    """Refund exactly one excess capture using a deterministic idempotency key."""
+    store: Store = request.app.state.store
+    try:
+        order = store.get_order_for_intent(intent_id)
+        result = await perform_refund(
+            store,
+            request.app.state.provider,
+            order_id=order.order_id,
+            refund_intent_id=f"ri_demo_duplicate_{intent_id}",
+            amount_minor=order.amount_minor,
+        )
+    except StoreError as exc:
+        raise _http_from_store_error(exc) from exc
+    except ProviderRejected as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ProviderUncertain as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if result.status not in {"REFUNDED_PARTIAL", "REFUNDED_FULL"}:
+        raise HTTPException(status_code=500, detail="duplicate refund returned an invalid state")
+    return DemoRefundResponse(
+        order_id=result.order_id,
+        intent_id=result.intent_id,
+        refund_amount_minor=order.amount_minor,
+        net_charged_minor=order.amount_minor,
+        status=result.status,
+    )
+
+
 def _external_base_url(request: Request) -> str:
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("host", request.url.netloc)
@@ -320,6 +380,7 @@ def create_app(
     store = Store(path)
     app.state.store = store
     app.state.router = Router(store)
+    app.state.demo_outage_active = False
     if provider is not None:
         app.state.provider = provider
     elif resolved.provider_base_url:
@@ -328,6 +389,32 @@ def create_app(
         )
     else:
         app.state.provider = UnavailableProvider()
+
+    @app.middleware("http")
+    async def scripted_public_outage(request: Request, call_next: Any) -> Response:
+        if request.url.path.startswith("/internal/") or not request.app.state.demo_outage_active:
+            return await call_next(request)
+        return HTMLResponse(
+            """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NightMart unavailable</title><style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7fa;
+color:#101828;font:16px/1.5 Inter,Segoe UI,sans-serif}.box{max-width:520px;padding:40px;
+text-align:center}.mark{width:56px;height:56px;margin:auto;border-radius:50%;display:grid;
+place-items:center;background:#fee4e2;color:#d92d20;font-size:28px;font-weight:800}h1{font-size:32px;
+letter-spacing:-.03em;margin:20px 0 8px}p{color:#667085;margin:0}.code{display:inline-block;
+margin-top:20px;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #d0d5dd;
+font-size:13px;font-weight:700}</style></head><body><main class="box"><div class="mark">!</div>
+<h1>NightMart is unavailable</h1><p>NightWatch detected a security incident and stopped
+checkout traffic. Service will return after the verified repair is activated.</p>
+<span class="code">503 · Protected shutdown</span></main></body></html>""",
+            status_code=503,
+            headers={
+                "Cache-Control": "no-store",
+                "Retry-After": "2",
+                "X-NightWatch-Demo-Outage": "scripted",
+            },
+        )
 
     @app.get("/health")
     async def health_root() -> dict[str, str]:

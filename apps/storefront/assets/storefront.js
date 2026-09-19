@@ -133,7 +133,8 @@
   }
 
   function initCheckout() {
-    const intentId = new URLSearchParams(window.location.search).get("intent");
+    const params = new URLSearchParams(window.location.search);
+    const intentId = params.get("intent");
     const form = $("checkout-form");
     const pay = $("pay");
     const email = $("email");
@@ -144,6 +145,26 @@
     // Both fields remain editable and the page labels them as demo data.
     if (email && !email.value) email.value = "demo@example.com";
     if (address && !address.value) address.value = "1 Demo Street, London";
+
+    const recoveryOrder = params.get("recovery_order");
+    if (recoveryOrder) {
+      StoreAPI.getOrder(recoveryOrder)
+        .then((order) => {
+          const status = (pickString(order, ["status", "state"]) ?? "").toUpperCase();
+          if (status === "REFUNDED_PARTIAL" || status === "REFUNDED_FULL") {
+            const refunded = Number(params.get("refund_minor"));
+            const net = Number(params.get("net_minor"));
+            showBanner(
+              `Recovery complete — ${catalog.formatGBP(Number.isFinite(refunded) ? refunded : 7999)} refunded. ` +
+                `Correct net charge: ${catalog.formatGBP(Number.isFinite(net) ? net : 7999)}.`,
+              "ok",
+            );
+          }
+        })
+        .catch(() => {
+          // Never claim a refund unless the store confirms a refunded status.
+        });
+    }
 
     if (!intentId) {
       showBanner("No checkout intent in the URL. Return to the shop and start again.", "err");
@@ -194,11 +215,19 @@
         const orderId = pickString(result, ["order_id", "id"]);
         if (orderId) {
           sessionStorage.setItem(`nw.order.${orderId}`, JSON.stringify(result));
+          const capturedTotal = pickNumber(result, ["captured_total_minor"]);
+          if (capturedTotal !== null) {
+            sessionStorage.setItem(
+              `nw.charged.${orderId}`,
+              String(capturedTotal),
+            );
+          }
           const incidentMessage = pickString(result, ["message"]);
           if (incidentMessage) {
             sessionStorage.setItem(`nw.incident.${orderId}`, incidentMessage);
           }
-          window.location.href = `status.html?order=${encodeURIComponent(orderId)}`;
+          const chargedQuery = capturedTotal === null ? "" : `&charged=${capturedTotal}`;
+          window.location.href = `status.html?order=${encodeURIComponent(orderId)}${chargedQuery}`;
           return;
         }
         const status = pickString(result, ["status", "state"]) ?? "HELD";
@@ -259,11 +288,14 @@
     const intentId = $("intent-id");
     if (intentId) intentId.textContent = pickString(order, ["intent_id"]) ?? "—";
 
-    const amount = pickNumber(order, ["amount_minor"]);
+    const capturedTotal = pickNumber(order, ["captured_total_minor"]);
+    const amount = capturedTotal ?? pickNumber(order, ["amount_minor"]);
     const amountElement = $("amount");
     if (amountElement) {
       amountElement.textContent = amount === null ? "—" : catalog.formatGBP(amount);
     }
+    const amountLabel = $("amount-label");
+    if (amountLabel) amountLabel.textContent = capturedTotal === null ? "Order amount" : "Total charged";
 
     const raw = $("raw");
     if (raw) raw.textContent = JSON.stringify(order, null, 2);
@@ -272,7 +304,8 @@
   }
 
   function initStatus() {
-    const orderId = new URLSearchParams(window.location.search).get("order");
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("order");
     if (!orderId) {
       showBanner("No order reference in the URL.", "err");
       return;
@@ -292,6 +325,14 @@
     async function load() {
       try {
         const order = await StoreAPI.getOrder(orderId);
+        const chargedFromUrl = Number(params.get("charged"));
+        const charged =
+          Number.isFinite(chargedFromUrl) && chargedFromUrl > 0
+            ? chargedFromUrl
+            : Number(sessionStorage.getItem(`nw.charged.${orderId}`));
+        if (Number.isFinite(charged) && charged > 0) {
+          order.captured_total_minor = charged;
+        }
         sessionStorage.setItem(`nw.order.${orderId}`, JSON.stringify(order));
         const status = renderOrder(order);
         if (POLLING_STATUSES.has(status)) {

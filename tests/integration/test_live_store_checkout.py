@@ -37,12 +37,31 @@ async def test_operator_can_arm_visible_double_charge_showcase(stack_factory) ->
     result = checkout.json()
     assert result["status"] == "PAID"
     assert "You were charged twice" in result["message"]
+    assert result["captured_total_minor"] == 15998
 
     ledger = await stack.evaluator_client.get(
         f"/internal/ledger/{setup['namespace']}", headers=EVAL_HEADERS
     )
     assert ledger.status_code == 200, ledger.text
     assert len(ledger.json()["captures"]) == 2
+
+    recovered = await stack.store_client.post(
+        f"/internal/demo/refund-duplicate/{setup['intent_id']}", headers=LIVE_HEADERS
+    )
+    assert recovered.status_code == 200, recovered.text
+    assert recovered.json()["refund_amount_minor"] == 7999
+    assert recovered.json()["net_charged_minor"] == 7999
+    assert recovered.json()["status"] == "REFUNDED_PARTIAL"
+
+    replay = await stack.store_client.post(
+        f"/internal/demo/refund-duplicate/{setup['intent_id']}", headers=LIVE_HEADERS
+    )
+    assert replay.status_code == 200
+    ledger = await stack.evaluator_client.get(
+        f"/internal/ledger/{setup['namespace']}", headers=EVAL_HEADERS
+    )
+    assert len(ledger.json()["refunds"]) == 1
+    assert ledger.json()["refunds"][0]["amount_minor"] == 7999
 
 
 async def test_safe_checkout_pays_exactly_once(stack_factory) -> None:

@@ -237,7 +237,7 @@ async def prepare_double_charge_demo(
                 intent_id=body.intent_id,
                 amount_minor=body.amount_minor,
                 currency="GBP",
-                allowed_actions=["capture", "inquiry"],
+                allowed_actions=["capture", "refund", "inquiry"],
             )
         )
     except ProviderError as exc:

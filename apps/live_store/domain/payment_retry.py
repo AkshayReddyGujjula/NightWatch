@@ -60,6 +60,7 @@ class PaymentOutcome:
     capture_id: str | None = None
     idempotency_key: str | None = None
     reason: str | None = None
+    captured_total_minor: int | None = None
 
 
 async def buggy_retry_checkout(
@@ -98,6 +99,7 @@ async def buggy_retry_checkout(
     # ledger is outside the store and is therefore the evidence source; failure
     # to read it never fabricates an incident notice.
     reason: str | None = None
+    captured_total_minor: int | None = None
     try:
         captures = await provider.captures(operation_id)
     except (ProviderUncertain, ProviderRejected):
@@ -107,6 +109,7 @@ async def buggy_retry_checkout(
     ]
     if len(matching) > 1:
         total_minor = sum(row.amount_minor for row in matching)
+        captured_total_minor = total_minor
         reason = (
             "PAYMENT INCIDENT: the trusted payment provider recorded "
             f"{len(matching)} captures totalling £{total_minor / 100:.2f} "
@@ -117,6 +120,7 @@ async def buggy_retry_checkout(
         capture_id=capture.capture_id,
         idempotency_key=used_key,
         reason=reason,
+        captured_total_minor=captured_total_minor,
     )
 
 

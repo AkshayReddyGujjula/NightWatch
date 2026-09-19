@@ -17,6 +17,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, Literal
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -65,6 +66,7 @@ def _initial_state() -> dict[str, Any]:
         "winner": None,
         "fixed_checkout_url": None,
         "receipt_path": None,
+        "refund": None,
         "degraded_reasons": [],
     }
 
@@ -117,6 +119,29 @@ async def _arm_double_charge() -> dict[str, Any]:
         )
         response.raise_for_status()
         return response.json()
+
+
+async def _set_store_outage(active: bool) -> dict[str, Any]:
+    token = _env().get("LIVE_INTERNAL_TOKEN", "")
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.put(
+            f"{STORE_URL}/internal/demo/outage",
+            headers=_headers(token),
+            json={"active": active},
+        )
+    response.raise_for_status()
+    return response.json()
+
+
+async def _refund_duplicate(intent_id: str) -> dict[str, Any]:
+    token = _env().get("LIVE_INTERNAL_TOKEN", "")
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(
+            f"{STORE_URL}/internal/demo/refund-duplicate/{intent_id}",
+            headers=_headers(token),
+        )
+    response.raise_for_status()
+    return response.json()
 
 
 async def _set_router(mode: str, *, setup: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -297,9 +322,37 @@ async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
                     jev_action="Modal launcher ended before a validated frame",
                 )
         _persist()
+    # Activate the validated safe handler against the incident first. Payment
+    # recovery must happen before arming a fresh namespace, which rotates the
+    # provider's scoped token away from the damaged operation.
+    await _set_router("SAFE_HOLD")
+    incident_activation = await _set_router("SAFE")
+    refund: dict[str, Any] | None = None
+    if _state.get("incident_type") == "DOUBLE_CHARGE":
+        intent_id = str((_state.get("showcase") or {}).get("intent_id") or "")
+        if not intent_id:
+            raise RuntimeError("detected payment evidence omitted intent_id")
+        refund = await _refund_duplicate(intent_id)
+
     setup = await _arm_double_charge()
     await _set_router("SAFE_HOLD", setup=setup)
     readback = await _set_router("SAFE", setup=setup)
+    if _state.get("incident_type") == "SCRIPTED_SECURITY_CRASH":
+        await _set_store_outage(False)
+        async with httpx.AsyncClient(timeout=15) as client:
+            health = await client.get(f"{STORE_URL}/health")
+        if health.status_code != 200:
+            raise RuntimeError(f"NightMart recovery health returned {health.status_code}")
+
+    fixed_checkout_url = setup["checkout_x_url"]
+    if refund is not None:
+        fixed_checkout_url += "&" + urlencode(
+            {
+                "recovery_order": refund["order_id"],
+                "refund_minor": refund["refund_amount_minor"],
+                "net_minor": refund["net_charged_minor"],
+            }
+        )
     receipt = {
         "run_id": run_id,
         "incident_type": _state["incident_type"],
@@ -307,10 +360,12 @@ async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
         "gemini": _state.get("gemini"),
         "candidate_process_exit_codes": process_codes,
         "winner": "B",
+        "incident_activation_readback": incident_activation,
         "activation_readback": readback,
-        "fixed_checkout_url": setup["checkout_x_url"],
+        "fixed_checkout_url": fixed_checkout_url,
         "fixed_namespace": setup["namespace"],
         "fixed_intent_id": setup["intent_id"],
+        "refund": refund,
         "security_label": _state.get("security"),
         "created_at": _now(),
     }
@@ -319,9 +374,10 @@ async def _finish_repair(run_id: str, process_codes: dict[str, int]) -> None:
     receipt_path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
     await _update(
         state="FIXED",
-        headline="Candidate B activated under a 30-minute lease",
+        headline="Recovered — Candidate B is live",
         winner="B",
-        fixed_checkout_url=setup["checkout_x_url"],
+        fixed_checkout_url=fixed_checkout_url,
+        refund=refund,
         receipt_path=str(receipt_path),
         security={"armed": False, "health": 200, "label": "SCRIPTED_DEMO_TARGET"},
     )
@@ -344,6 +400,7 @@ async def _payment_pipeline(run_id: str, setup: dict[str, Any]) -> None:
     captures = ledger["captures"]
     evidence = {
         "namespace": ledger["namespace"],
+        "intent_id": setup["intent_id"],
         "operation_id": setup["operation_id"],
         "capture_ids": [row["capture_id"] for row in captures],
         "idempotency_keys": [row["idempotency_key"] for row in captures],
@@ -368,9 +425,9 @@ async def _payment_pipeline(run_id: str, setup: dict[str, Any]) -> None:
 async def _cyber_pipeline(run_id: str) -> None:
     evidence = {
         "scripted": True,
-        "target": "demo-target health endpoint",
+        "target": "NightMart public storefront and checkout API",
         "observed_health_status": 503,
-        "symptom": "isolated demo target refuses health checks and checkout traffic",
+        "symptom": "NightMart returns HTTP 503 and refuses all public checkout traffic",
     }
     await _update(
         state="DETECTED",
@@ -463,6 +520,7 @@ async def arm_demo() -> dict[str, Any]:
     global _pipeline_task
     if _pipeline_task is not None and not _pipeline_task.done():
         raise HTTPException(409, "a demo pipeline is already running")
+    await _set_store_outage(False)
     setup = await _arm_double_charge()
     run_id = f"payment-{datetime.now(UTC).strftime('%H%M%S')}-{uuid.uuid4().hex[:6]}"
     await _update(
@@ -476,6 +534,7 @@ async def arm_demo() -> dict[str, Any]:
         winner=None,
         fixed_checkout_url=None,
         receipt_path=None,
+        refund=None,
         degraded_reasons=[],
     )
     _pipeline_task = asyncio.create_task(
@@ -489,6 +548,7 @@ async def arm_cyber() -> dict[str, Any]:
     global _pipeline_task
     if _pipeline_task is not None and not _pipeline_task.done():
         raise HTTPException(409, "a demo pipeline is already running")
+    await _set_store_outage(True)
     run_id = f"security-{datetime.now(UTC).strftime('%H%M%S')}-{uuid.uuid4().hex[:6]}"
     await _update(
         run_id=run_id,
@@ -502,10 +562,11 @@ async def arm_cyber() -> dict[str, Any]:
         winner=None,
         fixed_checkout_url=None,
         receipt_path=None,
+        refund=None,
         degraded_reasons=[],
     )
     _pipeline_task = asyncio.create_task(_pipeline_guard(run_id, _cyber_pipeline(run_id)))
-    return {"run_id": run_id, "dashboard_url": SERVER_URL}
+    return {"run_id": run_id, "dashboard_url": SERVER_URL, "store_url": STORE_URL}
 
 
 @app.post("/api/reset")
@@ -513,6 +574,7 @@ async def reset() -> dict[str, Any]:
     global _state
     if _pipeline_task is not None and not _pipeline_task.done():
         raise HTTPException(409, "wait for the active run before resetting")
+    await _set_store_outage(False)
     token = _env().get("LIVE_INTERNAL_TOKEN", "")
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(f"{STORE_URL}/internal/reset", headers=_headers(token))

@@ -14,6 +14,18 @@
       "default": null,
       "title": "Amount Minor"
     },
+    "captured_total_minor": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Captured Total Minor"
+    },
     "currency": {
       "const": "GBP",
       "default": "GBP",

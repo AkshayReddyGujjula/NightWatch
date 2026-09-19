@@ -1,26 +1,633 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>NightWatch — Live Repair Room</title>
-  <style>
-    :root{color-scheme:dark;--bg:#070b10;--panel:#101821;--line:#243242;--ink:#e8f0f7;--muted:#8798aa;--cyan:#46d9ff;--green:#63e6a3;--amber:#ffc857;--red:#ff6b7a}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#122232,#070b10 35%);color:var(--ink);font:14px/1.45 Inter,Segoe UI,sans-serif}header{position:sticky;top:0;z-index:3;display:flex;gap:24px;align-items:center;padding:14px 22px;background:#081019ee;border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.brand{font:800 16px ui-monospace;letter-spacing:2px;color:var(--cyan)}.state{font:800 13px ui-monospace;padding:5px 10px;border:1px solid var(--cyan);border-radius:99px}.updated{margin-left:auto;color:var(--muted)}main{padding:18px 22px 32px;display:grid;gap:14px}.alert,.panel{border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,#111b26,#0c131c);padding:16px}.alert{border-color:#62323a;box-shadow:0 0 30px #ff6b7a14}.alert h1{margin:0 0 4px;font-size:22px}.alert p{margin:0;color:var(--muted)}.facts{display:grid;grid-template-columns:1fr 1fr;gap:14px}.panel h2{margin:0 0 10px;color:var(--muted);font:700 11px ui-monospace;letter-spacing:1.4px;text-transform:uppercase}.gemini{border-color:#284a6a}.gemini strong{color:var(--cyan)}.fixes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}.fix{padding:10px;border:1px solid var(--line);border-radius:8px}.fix b{display:block;color:var(--cyan)}.wall{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.tile{min-width:0;border:1px solid var(--line);border-radius:10px;background:#090e14;overflow:hidden}.tile header{position:static;padding:9px 11px;background:#0c141d}.tile img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#030609}.empty{display:grid;place-items:center;width:100%;aspect-ratio:16/9;color:var(--muted);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.meta{padding:10px;font:12px ui-monospace;color:var(--muted);min-height:74px}.pass{color:var(--green)}.fail{color:var(--red)}.live{color:var(--amber)}a.button{display:inline-block;margin-top:10px;padding:10px 14px;border-radius:8px;background:var(--green);color:#06110b;font-weight:800;text-decoration:none}.foot{color:var(--muted);font-size:12px}@media(max-width:900px){.facts,.wall,.fixes{grid-template-columns:1fr}}
-  </style>
-</head>
-<body>
-<header><span class="brand">NIGHTWATCH</span><span id="state" class="state">CONNECTING</span><span id="run"></span><span id="updated" class="updated"></span></header>
-<main>
-  <section class="alert"><h1 id="headline">Waiting for coordinator…</h1><p id="incident">No incident yet.</p><a id="fixed" class="button" hidden target="_blank">Open verified fixed checkout</a></section>
-  <div class="facts"><section class="panel gemini"><h2>Gemini diagnosis — MODEL PROPOSED</h2><div id="gemini">Awaiting trusted evidence.</div><div id="fixes" class="fixes"></div></section><section class="panel"><h2>Trusted evidence / activation</h2><pre id="evidence" style="white-space:pre-wrap;margin:0;color:var(--muted)"></pre></section></div>
-  <section class="panel"><h2>Live concurrent Modal + CUA + Jev browser worlds</h2><div id="wall" class="wall"></div><p class="foot">Every displayed image is copied from a real Modal Sandbox CUA screenshot during this run. Missing frames remain visibly empty. The scripted security beat is explicitly labelled.</p></section>
-</main>
-<script>
-const ids=["A","B","C"];let lastSeq={};
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
-function render(s){state.textContent=s.state;run.textContent=s.run_id||"no active run";updated.textContent=s.updated_at?new Date(s.updated_at).toLocaleTimeString():"";headline.textContent=s.headline;incident.textContent=s.incident_type?`${s.incident_type}${s.security?.health===503?" — SCRIPTED isolated target failure":""}`:"No incident yet.";evidence.textContent=JSON.stringify(s.showcase||{security:s.security,winner:s.winner,receipt:s.receipt_path},null,2);fixed.hidden=!s.fixed_checkout_url;fixed.style.display=s.fixed_checkout_url?"inline-flex":"none";if(s.fixed_checkout_url){fixed.href=s.fixed_checkout_url}else{fixed.removeAttribute("href")}
-const g=s.gemini;if(g){gemini.innerHTML=`<strong>${esc(g.incident_summary)}</strong><p>${esc(g.root_cause)}</p><p>Severity: ${esc(g.severity)}</p>`;fixes.innerHTML=(g.fixes||[]).map(f=>`<div class="fix"><b>${esc(f.candidate_id)} · ${esc(f.name)}</b><span>${esc(f.strategy)}</span></div>`).join("");}else{gemini.textContent=(s.degraded_reasons||[]).join(" | ")||"Awaiting Gemini after detection.";fixes.innerHTML="";}
-wall.innerHTML=ids.map(id=>{const c=s.candidates?.[id]||{candidate_id:id,name:"candidate",status:"QUEUED"};const seq=c.frame_seq;const has=seq!==null&&seq!==undefined;const img=has?`<img src="/api/frames/${id}?v=${encodeURIComponent(seq)}" alt="Real CUA browser frame for candidate ${id}">`:`<div class="empty">AWAITING REAL FRAME</div>`;return `<article class="tile"><header><b>CANDIDATE ${id} · ${esc(c.name)}</b><span class="${c.status==='LIVE'?'live':c.browser_verdict==='PASS'?'pass':''}">${esc(c.status)}</span></header>${img}<div class="meta">Sandbox: ${esc(c.sandbox_id||"not started")}<br>Jev: ${esc(c.jev_action||"awaiting decision")}<br>Verdict: ${esc(c.browser_verdict||"pending")}</div></article>`;}).join("");}
-async function poll(){try{const r=await fetch('/api/state',{cache:'no-store'});render(await r.json());}catch(e){headline.textContent='Coordinator unavailable';}setTimeout(poll,500)}poll();
-</script>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>NightWatch — Incident room</title>
+    <style>
+      [hidden] {
+        display: none !important;
+      }
+      :root {
+        color-scheme: light;
+        --ink: #101828;
+        --sub: #667085;
+        --line: #e4e7ec;
+        --soft: #f5f7fa;
+        --white: #fff;
+        --blue: #175cd3;
+        --blue-bg: #eff4ff;
+        --red: #d92d20;
+        --red-bg: #fef3f2;
+        --green: #067647;
+        --green-bg: #ecfdf3;
+        --amber: #b54708;
+        --amber-bg: #fffaeb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--soft);
+        color: var(--ink);
+        font:
+          14px/1.45 Inter,
+          "Segoe UI",
+          Arial,
+          sans-serif;
+      }
+      .topbar {
+        height: 62px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 28px;
+        background: var(--white);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+      .brand i {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        margin-right: 9px;
+        border-radius: 50%;
+        background: var(--blue);
+        box-shadow: 0 0 0 5px var(--blue-bg);
+      }
+      .run {
+        color: var(--sub);
+        font-size: 12px;
+      }
+      .clock {
+        margin-left: auto;
+        color: var(--sub);
+        font-variant-numeric: tabular-nums;
+      }
+      .state {
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: var(--blue-bg);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .state.fixed {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .state.alerting {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      main {
+        max-width: 1560px;
+        margin: auto;
+        padding: 20px 28px 30px;
+        display: grid;
+        gap: 14px;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.6fr);
+        gap: 14px;
+      }
+      .incident,
+      .choice,
+      .analysis,
+      .browser-section {
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+      .incident {
+        padding: 22px 24px;
+      }
+      .incident.alert {
+        border-left: 5px solid var(--red);
+      }
+      .incident.recovered {
+        border-left: 5px solid var(--green);
+      }
+      .kicker {
+        color: var(--sub);
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 7px;
+      }
+      .incident h1 {
+        font-size: 28px;
+        line-height: 1.15;
+        letter-spacing: -0.035em;
+        margin: 0 0 8px;
+      }
+      .incident p {
+        color: var(--sub);
+        margin: 0;
+        max-width: 780px;
+      }
+      .metrics {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+      }
+      .metric {
+        min-width: 135px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--soft);
+      }
+      .metric strong {
+        display: block;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+      .metric span {
+        color: var(--sub);
+        font-size: 12px;
+      }
+      .choice {
+        padding: 20px;
+        border-color: #b2ccff;
+        background: linear-gradient(135deg, #fff, #f5f8ff);
+      }
+      .choice.pending {
+        border-color: var(--line);
+        background: var(--white);
+      }
+      .choice-label {
+        font-size: 12px;
+        color: var(--sub);
+        font-weight: 700;
+      }
+      .choice h2 {
+        font-size: 22px;
+        letter-spacing: -0.025em;
+        margin: 8px 0 4px;
+      }
+      .choice p {
+        margin: 0;
+        color: var(--sub);
+      }
+      .chosen {
+        display: inline-flex;
+        margin-top: 14px;
+        padding: 6px 9px;
+        border-radius: 7px;
+        background: var(--green-bg);
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .open {
+        display: inline-flex;
+        margin-top: 14px;
+        padding: 9px 12px;
+        border-radius: 8px;
+        background: var(--ink);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+      }
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 16px;
+      }
+      .step {
+        position: relative;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--sub);
+        font-weight: 600;
+      }
+      .step:not(:last-child):after {
+        content: "";
+        position: absolute;
+        left: 35px;
+        right: 10px;
+        top: 12px;
+        height: 2px;
+        background: var(--line);
+      }
+      .dot {
+        position: relative;
+        z-index: 1;
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--soft);
+        border: 1px solid var(--line);
+        font-size: 11px;
+      }
+      .step.done {
+        color: var(--green);
+      }
+      .step.done .dot {
+        background: var(--green);
+        border-color: var(--green);
+        color: #fff;
+      }
+      .step.active {
+        color: var(--blue);
+      }
+      .step.active .dot {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+      }
+      .analysis {
+        padding: 17px 18px;
+      }
+      .analysis-head {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .analysis-head h2 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .analysis-copy {
+        margin: 3px 0 0;
+        color: var(--sub);
+        max-width: 920px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .severity {
+        margin-left: auto;
+        padding: 5px 9px;
+        background: var(--amber-bg);
+        color: var(--amber);
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .fixes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .fix {
+        position: relative;
+        padding: 12px 13px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        min-height: 82px;
+      }
+      .fix.selected {
+        border: 2px solid var(--green);
+        background: var(--green-bg);
+      }
+      .fix b {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .fix span {
+        color: var(--sub);
+        font-size: 12px;
+      }
+      .fix .tag {
+        position: absolute;
+        right: 9px;
+        top: 9px;
+        color: var(--green);
+        font-weight: 800;
+      }
+      .browser-section {
+        padding: 17px 18px;
+      }
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .section-head h2 {
+        font-size: 16px;
+        margin: 0;
+      }
+      .section-head p {
+        margin: 0;
+        color: var(--sub);
+        font-size: 12px;
+      }
+      .wall {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .tile {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        overflow: hidden;
+        background: var(--white);
+      }
+      .tile.selected {
+        border: 2px solid var(--green);
+      }
+      .tile-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tile-head b {
+        font-size: 13px;
+      }
+      .status {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--sub);
+      }
+      .status.live {
+        color: var(--blue);
+      }
+      .status.pass {
+        color: var(--green);
+      }
+      .status.fail {
+        color: var(--red);
+      }
+      .tile img,
+      .empty {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #eef1f5;
+      }
+      .tile img {
+        object-fit: contain;
+      }
+      .empty {
+        display: grid;
+        place-items: center;
+        color: #98a2b3;
+        font-size: 12px;
+      }
+      .meta {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        padding: 9px 12px;
+        color: var(--sub);
+        font-size: 11px;
+      }
+      .meta span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .foot {
+        margin: 10px 0 0;
+        color: var(--sub);
+        font-size: 11px;
+      }
+      @media (max-width: 900px) {
+        .hero,
+        .fixes,
+        .wall {
+          grid-template-columns: 1fr;
+        }
+        .timeline {
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        .step:after {
+          display: none;
+        }
+        .topbar {
+          padding: 0 16px;
+        }
+        main {
+          padding: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="brand"><i></i>NightWatch</span
+      ><span id="state" class="state">Connecting</span
+      ><span id="run" class="run"></span
+      ><span id="updated" class="clock"></span>
+    </header>
+    <main>
+      <div class="hero">
+        <section id="incident-card" class="incident">
+          <div id="kicker" class="kicker">System ready</div>
+          <h1 id="headline">Waiting for the next incident</h1>
+          <p id="incident">NightWatch is monitoring NightMart.</p>
+          <div id="metrics" class="metrics"></div>
+        </section>
+        <aside id="choice" class="choice pending">
+          <div class="choice-label">Chosen implementation</div>
+          <h2 id="choice-name">Decision pending</h2>
+          <p id="choice-copy">
+            Gemini proposes options. Live validation decides what ships.
+          </p>
+          <span id="chosen" class="chosen" hidden>Selected and activated</span
+          ><a id="fixed" class="open" hidden target="_blank"
+            >Open recovered checkout</a
+          >
+        </aside>
+      </div>
+      <section id="timeline" class="timeline"></section>
+      <section class="browser-section">
+        <div class="section-head">
+          <h2>Live validation</h2>
+          <p>Modal sandboxes · CUA browsers · Jev decisions</p>
+        </div>
+        <div id="wall" class="wall"></div>
+        <p class="foot">
+          Every image is a live screenshot from this run. Missing evidence stays
+          visibly missing.
+        </p>
+      </section>
+      <section class="analysis">
+        <div class="analysis-head">
+          <div>
+            <h2>Gemini diagnosis</h2>
+            <p id="analysis-copy" class="analysis-copy">
+              Waiting for trusted evidence.
+            </p>
+          </div>
+          <span id="severity" class="severity" hidden></span>
+        </div>
+        <div id="fixes" class="fixes"></div>
+      </section>
+    </main>
+    <script>
+      const ids = ["A", "B", "C"];
+      const esc = (v) =>
+        String(v ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      function phase(s) {
+        if (s.state === "FIXED") return 4;
+        if (s.state === "RACING") return 2;
+        if (s.gemini) return 2;
+        if (s.state === "DETECTED") return 1;
+        return 0;
+      }
+      function metric(label, value) {
+        return `<div class="metric"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`;
+      }
+      function render(s) {
+        const p = phase(s),
+          isFixed = s.state === "FIXED",
+          isIncident = p > 0 && !isFixed;
+        state.textContent = s.state.replaceAll("_", " ");
+        state.className = `state ${isFixed ? "fixed" : isIncident ? "alerting" : ""}`;
+        run.textContent = s.run_id || "No active run";
+        updated.textContent = s.updated_at
+          ? new Date(s.updated_at).toLocaleTimeString()
+          : "";
+        headline.textContent = s.headline;
+        const card = document.getElementById("incident-card");
+        card.className = `incident ${isFixed ? "recovered" : isIncident ? "alert" : ""}`;
+        const payment = s.incident_type === "DOUBLE_CHARGE",
+          cyber = s.incident_type === "SCRIPTED_SECURITY_CRASH";
+        kicker.textContent = isFixed
+          ? payment
+            ? "Customer made whole"
+            : "Service recovered"
+          : payment
+            ? "Payment incident"
+            : cyber
+              ? "Security incident · scripted"
+              : "System ready";
+        incident.textContent = isFixed
+          ? payment
+            ? "The duplicate £79.99 capture was refunded. The validated repair now charges each order once."
+            : "The validated repair is active. NightMart is operating normally."
+          : payment
+            ? "One £79.99 order created two captures. Checkout is contained while NightWatch validates a repair."
+            : cyber
+              ? "NightMart is offline with HTTP 503. Public checkout traffic is blocked until recovery."
+              : "NightWatch is monitoring NightMart.";
+        metrics.innerHTML =
+          isFixed && payment
+            ? metric("Refunded", "£79.99") +
+              metric("Correct net charge", "£79.99") +
+              metric("Repair", "Active")
+            : isFixed && cyber
+              ? metric("NightMart", "Online") +
+                metric("HTTP status", "200") +
+                metric("Checkout", "Open")
+              : payment
+                ? metric("Expected", "£79.99") +
+                  metric("Actually charged", "£159.98") +
+                  metric("Captures", "2")
+                : cyber
+                  ? metric("NightMart", "Offline") +
+                    metric("HTTP status", "503") +
+                    metric("Checkout", "Blocked")
+                  : metric(
+                      "NightMart",
+                      s.security?.health === 503 ? "Offline" : "Online",
+                    ) + metric("Monitoring", "Active");
+        const steps = ["Detected", "Diagnosed", "Validated", "Recovered"];
+        timeline.innerHTML = steps
+          .map((x, i) => {
+            const n = i + 1,
+              done = p >= n,
+              active = p > 0 && p === i && p < 4;
+            return `<div class="step ${done ? "done" : active ? "active" : ""}"><span class="dot">${done ? "✓" : n}</span><span>${x}</span></div>`;
+          })
+          .join("");
+        const winner = s.winner,
+          fix = (s.gemini?.fixes || []).find((f) => f.candidate_id === winner);
+        choice.className = `choice ${winner ? "" : "pending"}`;
+        document.getElementById("choice-name").textContent = winner
+          ? `${winner} — ${fix?.name || s.candidates?.[winner]?.name || "Validated repair"}`
+          : "Decision pending";
+        document.getElementById("choice-copy").textContent = winner
+          ? fix?.expected_result ||
+            "Passed live validation and activated under a safe lease."
+          : "Gemini proposes options. Live validation decides what ships.";
+        chosen.hidden = !winner;
+        fixed.hidden = !s.fixed_checkout_url;
+        fixed.style.display = s.fixed_checkout_url ? "inline-flex" : "none";
+        if (s.fixed_checkout_url) fixed.href = s.fixed_checkout_url;
+        else fixed.removeAttribute("href");
+        const g = s.gemini;
+        document.getElementById("analysis-copy").textContent = g
+          ? g.root_cause
+          : (s.degraded_reasons || []).join(" · ") ||
+            "Waiting for trusted evidence.";
+        severity.hidden = !g;
+        severity.textContent = g ? `${g.severity} severity` : "";
+        fixes.innerHTML = (
+          g?.fixes ||
+          ids.map((id) => ({
+            candidate_id: id,
+            name: s.candidates?.[id]?.name || "Waiting for Gemini",
+            expected_result: "Not proposed yet",
+          }))
+        )
+          .map(
+            (f) =>
+              `<article class="fix ${winner === f.candidate_id ? "selected" : ""}">${winner === f.candidate_id ? '<span class="tag">Chosen</span>' : ""}<b>${esc(f.candidate_id)} — ${esc(f.name)}</b><span>${esc(f.expected_result)}</span></article>`,
+          )
+          .join("");
+        wall.innerHTML = ids
+          .map((id) => {
+            const c = s.candidates?.[id] || {
+                name: "Waiting",
+                status: "QUEUED",
+              },
+              seq = c.frame_seq,
+              has = seq !== null && seq !== undefined,
+              verdict = c.browser_verdict || "Pending",
+              cls =
+                verdict === "PASS"
+                  ? "pass"
+                  : verdict.includes("FAIL")
+                    ? "fail"
+                    : c.status === "LIVE"
+                      ? "live"
+                      : "";
+            return `<article class="tile ${winner === id ? "selected" : ""}"><div class="tile-head"><b>${id} — ${esc(c.name)}</b><span class="status ${cls}">${esc(verdict === "Pending" ? c.status : verdict)}</span></div>${has ? `<img src="/api/frames/${id}?v=${encodeURIComponent(seq)}" alt="Live browser for candidate ${id}">` : '<div class="empty">Waiting for live browser</div>'}<div class="meta"><span>${esc(c.sandbox_id || "Sandbox starting")}</span><span>${esc(c.jev_action || "Jev waiting")}</span></div></article>`;
+          })
+          .join("");
+      }
+      async function poll() {
+        try {
+          const r = await fetch("/api/state", { cache: "no-store" });
+          render(await r.json());
+        } catch {
+          headline.textContent = "Coordinator unavailable";
+        }
+        setTimeout(poll, 500);
+      }
+      poll();
+    </script>
+  </body>
+</html>

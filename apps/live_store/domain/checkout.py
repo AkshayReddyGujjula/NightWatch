@@ -152,6 +152,7 @@ def _apply_outcome(
                 intent_id=order.intent_id,
                 status="PAID",
                 amount_minor=total,
+                captured_total_minor=outcome.captured_total_minor,
                 currency=CURRENCY,
                 message=outcome.reason,
             )
