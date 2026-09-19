@@ -262,7 +262,10 @@ def _shutdown_lifespan(snapshot: SqliteVolumeSnapshot) -> Callable[[FastAPI], An
 
 @app.function(
     image=TRUSTED_IMAGE,
-    secrets=[modal.Secret.from_name("nightwatch-provider")],
+    secrets=[
+        modal.Secret.from_name("nightwatch-provider"),
+        modal.Secret.from_name("nightwatch-live-internal"),
+    ],
     volumes={VOLUME_MOUNT: PROVIDER_VOLUME},
     min_containers=1,
     max_containers=1,
