@@ -37,3 +37,21 @@ credential, the runners are inside the trust zone, and the generation counter is
 monotonic and read back on every response. No signature field is added now; the wire
 shape is unchanged from the frozen contract. If an explicit signature is wanted later,
 it becomes an additive field at the next contract change.
+
+## 2026-09-19 — Track B: add `.gitattributes` with `* text=auto` and `*.sh text eol=lf`
+
+**Requested by:** Track B (Akshay) · **Owner:** shared repo root · **File:** `.gitattributes` (new)
+
+Windows checkouts run with `core.autocrlf=true`, so a fresh `git checkout` rewrites
+shell scripts to CRLF. `infra/start_desktop_world.sh` then fails inside the Linux
+image with `/usr/bin/env: 'bash\r': No such file or directory` (observed live on a
+Modal image build). Track B normalizes the file inside the image as a workaround, but
+the durable fix is repo-wide:
+
+```gitattributes
+* text=auto
+*.sh text eol=lf
+```
+
+so every Linux script (Track A's future ones included) survives a Windows checkout.
+Impact on frozen wire contracts: none - checkout hygiene only.

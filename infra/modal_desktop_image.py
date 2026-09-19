@@ -118,6 +118,9 @@ DESKTOP_IMAGE = (
     .add_local_file(
         _IMAGE_DIR / "cua_capabilities.json", f"{_REMOTE_DIR}/cua_capabilities.json", copy=True
     )
+    # Windows checkouts can deliver CRLF in shell scripts; the Linux image needs LF
+    # (shebang breakage otherwise). Normalize, then make the bootstrap executable.
+    .run_commands("sed -i 's/\\r$//' /opt/nightwatch/start_desktop_world.sh")
     .run_commands("chmod 755 /opt/nightwatch/start_desktop_world.sh")
     .workdir("/opt/nightwatch")
 )
