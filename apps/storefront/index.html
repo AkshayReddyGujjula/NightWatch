@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightMart — Shop</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="catalogue">
+  <header class="topbar">
+    <span class="brand">NightMart</span>
+    <span class="tag">Synthetic demo storefront</span>
+  </header>
+  <main>
+    <h1>Shop</h1>
+    <p class="sub">One product. One checkout. Synthetic data only.</p>
+    <div data-banner-slot></div>
+    <div class="grid">
+      <section class="card" aria-labelledby="product-heading">
+        <h2 id="product-heading">Product</h2>
+        <div class="product">
+          <div>
+            <div class="name">SKU-A — NightMart demo item</div>
+            <div class="muted">In stock: 100</div>
+          </div>
+          <div class="price">£79.99</div>
+        </div>
+        <div class="field field-spaced">
+          <label for="quantity">Quantity</label>
+          <div class="qty">
+            <button type="button" id="qty-dec" aria-label="Decrease quantity">−</button>
+            <input id="quantity" name="quantity" type="number" min="1" max="5" step="1" value="1" inputmode="numeric">
+            <button type="button" id="qty-inc" aria-label="Increase quantity">+</button>
+          </div>
+        </div>
+      </section>
+      <aside class="card" aria-labelledby="summary-heading">
+        <h2 id="summary-heading">Order summary</h2>
+        <div class="summary-row"><span>Subtotal</span><span id="subtotal" class="price">£79.99</span></div>
+        <div class="summary-row"><span>Delivery</span><span>Free</span></div>
+        <div class="summary-row total"><span>Total due</span><span id="total" class="price">£79.99</span></div>
+        <button class="btn btn-primary" id="start-checkout" type="button">Checkout</button>
+        <p class="footnote">You confirm payment on the next step.</p>
+      </aside>
+    </div>
+  </main>
+  <script src="assets/catalog.js"></script>
+  <script src="assets/api.js"></script>
+  <script src="assets/storefront.js"></script>
+</body>
+</html>

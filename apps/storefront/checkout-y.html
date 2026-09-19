@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightMart — Confirm your order</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="checkout">
+  <header class="topbar">
+    <span class="brand">NightMart</span>
+    <span class="tag">Synthetic demo storefront</span>
+  </header>
+  <main>
+    <h1>Confirm your order</h1>
+    <p class="sub">Check the delivery details we have for you.</p>
+    <div data-banner-slot></div>
+    <form id="checkout-form" class="grid" novalidate>
+      <section class="card" aria-labelledby="details-heading">
+        <h2 id="details-heading">Delivery details</h2>
+        <div class="field">
+          <label for="address">Delivery address</label>
+          <textarea id="address" name="address" rows="3" autocomplete="street-address"></textarea>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email">
+        </div>
+        <div class="field">
+          <button type="button" class="btn btn-ghost" id="add-voucher" data-reveal="voucher-field" aria-expanded="false" aria-controls="voucher-field">Add voucher</button>
+        </div>
+        <div class="field hidden" id="voucher-field">
+          <label for="voucher">Voucher</label>
+          <input id="voucher" name="voucher_code" type="text" autocomplete="off">
+          <div class="muted">Applied at payment.</div>
+        </div>
+      </section>
+      <aside class="card" aria-labelledby="summary-heading">
+        <h2 id="summary-heading">Order summary</h2>
+        <div class="summary-row"><span id="summary-line">SKU-A × 1</span><span id="subtotal" class="price"></span></div>
+        <div class="summary-row"><span>Delivery</span><span>Free</span></div>
+        <div class="summary-row total"><span>Total due</span><span id="total" class="price"></span></div>
+        <button class="btn btn-primary" id="pay" type="submit">Confirm order</button>
+        <p class="footnote">One charge per order. If a payment response is lost, NightMart confirms before charging again.</p>
+      </aside>
+    </form>
+  </main>
+  <script src="assets/catalog.js"></script>
+  <script src="assets/api.js"></script>
+  <script src="assets/storefront.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NightMart — Order status</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="status">
+  <header class="topbar">
+    <span class="brand">NightMart</span>
+    <span class="tag">Synthetic demo storefront</span>
+  </header>
+  <main class="narrow">
+    <h1>Order status</h1>
+    <p class="sub">This page reflects the store's current view of your order.</p>
+    <div data-banner-slot></div>
+    <section class="card" aria-labelledby="payment-heading">
+      <h2 id="payment-heading">Payment</h2>
+      <div class="status-line"><span id="status-badge" class="badge info">Checking…</span></div>
+      <p id="status-note" class="muted"></p>
+      <div class="summary-row"><span>Order</span><span id="order-id" class="mono">—</span></div>
+      <div class="summary-row"><span>Intent</span><span id="intent-id" class="mono">—</span></div>
+      <div class="summary-row total"><span>Amount</span><span id="amount" class="price">—</span></div>
+      <button class="btn btn-ghost" id="refresh" type="button">Refresh status</button>
+    </section>
+    <section class="card" aria-labelledby="receipt-heading">
+      <h2 id="receipt-heading">Receipt</h2>
+      <p class="muted">Keep this page: it shows the order reference and the amount the store recorded.</p>
+      <details>
+        <summary>Raw API response</summary>
+        <pre id="raw"></pre>
+      </details>
+    </section>
+  </main>
+  <script src="assets/catalog.js"></script>
+  <script src="assets/api.js"></script>
+  <script src="assets/storefront.js"></script>
+</body>
+</html>
