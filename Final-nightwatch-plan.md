@@ -1,6 +1,6 @@
 # NightWatch: final six-hour build and architecture plan
 
-**Version:** 1.4, 19 September 2026 — incorporates the two adversarial stress-review passes, the interactive decision review, the §14.4 sub-5-minute runtime budget, and the team decisions that presentation/video are out of scope and the public repo is the sync remote; findings are logged in §31  
+**Version:** 1.5, 19 September 2026 — adds the live-verified preflight facts (§11.3, §32.2), the decision that Gemini owns triage and Jev does not (§10.4), main-based branch sync (§31.4), and the Track A kickoff notes in §32  
 **Status:** implementation-ready; Section 2 is the frozen default unless Akshay and Jazil explicitly change it before the T+0:20 contract freeze  
 **Team:** two builders — **Jazil owns Track A** (domain, trusted authority, Gemini, proof) and **Akshay owns Track B** (Modal, Jev/CUA, dashboard). One laptop/branch owns each whole track; no path is edited by both.  
 **Build window:** T+0 to T+6h from whenever coding actually starts; T+6h to T+7h is submission, recording, secret-scrub and rehearsal time. Fixed anchors, whatever T+0 turns out to be: **19:00 submission** and **20:00 live demo**.  
@@ -483,7 +483,8 @@ Gemini may:
 - rank up to three hypotheses from the frozen capsule;
 - cite the exact evidence IDs supporting and contradicting each hypothesis;
 - request only experiments already enumerated by code;
-- produce Candidate C's `PatchProposal`.
+- produce Candidate C's `PatchProposal`;
+- emit the advisory **triage** block (category, severity, short rationale, confidence) defined in §10.4.
 
 Gemini may not invent provider facts, choose the winner, alter tests/fixtures/oracle/provider, run commands, issue a lease or deploy code.
 
@@ -510,6 +511,21 @@ Reject Candidate C unless all checks pass:
 Pass patch bytes as data or a mounted file. Never do `bash -c "echo '$PATCH' | git apply"`; quoting bugs and command injection would cross the trust boundary.
 
 If Gemini fails, times out or returns an invalid proposal, record `C=SKIPPED_INVALID` and continue A/B. Do not use a hand-authored patch while labelling it Gemini-generated.
+
+---
+
+### 10.4 Advisory triage belongs to Gemini, not Jev
+
+Decided 19 September and confirmed by live testing: the Gemini model accepts free-form string fields, while TypeSafe **cannot emit free text at all** (§11.3). Triage therefore goes to Gemini, and Jev keeps exactly one job — bounded browser action choice.
+
+`GeminiDiagnosis` carries a nested advisory block:
+
+- `category: Literal['payment_correctness','deploy_regression','infrastructure','security','unknown']`
+- `severity: Literal['low','medium','high','critical']`
+- `rationale: str` — at most 200 characters, referencing cited evidence IDs
+- `confidence: float` — bounded 0–1
+
+Rules: it is **advisory only**. It never qualifies an incident, gates a candidate, influences selection or touches the lease; it renders as `MODEL_PROPOSED` in the dashboard and the receipt. A missing or malformed triage block fails the diagnosis closed without blocking A/B.
 
 ---
 
@@ -564,6 +580,8 @@ Send one native TypeSafe `system_one` request using `AsyncTypeSafeClient` or the
 ```
 
 Parse the response into strict `TypeSafeChoiceResponse` and `JevDecision` Pydantic models. Reject a choice absent from the submitted criteria before any CUA call. Preserve raw probabilities, confidence statistic, response model ID, request ID and observation hash. Confidence measures distribution concentration, not correctness. Do not use one universal threshold; calibrate only a narrow low-margin rule from event-day smoke cases. A low-margin action reobserves once, then abstains. An abstention never becomes a blind click.
+
+**Live-verified contract (19 September — `pydantic-ai-slim[typesafe]` 2.46.0, `typesafe-sdk` 0.7.0, model `jev-1.13.0`).** TypeSafe outputs are restricted to: `bool`; a `Literal`/`Enum` of two or more strings; a `float` bounded `ge=0, le=1`; a list of `Literal`/`Enum`; a rubric of whole numbers from 0 with a description per level; or a model composed of these. **Free-form text is not supported** — it raises before any API call — so Jev can never produce prose, and any "explain yourself" field is a design error. Observed shapes: `Choice = {type, instructions, criteria}`, `ChoiceAnswer = {type, choice, confidence, probabilities}`. `TypeSafeModel(model_name, *, provider, profile, settings)` takes **no `api_key`** — auth comes from the environment/provider. First live pilot decision returned `choice='click__a17'`, `confidence=0.27`, `probabilities={click__a17: 0.52, abstain: 0.45, reobserve: 0.03}` — direct confirmation that confidence is a margin, not a correctness probability, and that the non-winning options must be preserved in the trace.
 
 ### 11.4 Execution guard
 
@@ -1583,3 +1601,43 @@ Recorded so they are never re-litigated mid-build:
 | 8 | Start time | **T+0 decided by the team** | The plan is written in relative time; only the 19:00 submission and 20:00 demo are fixed. A late start cuts scope from the back, never compresses gates. |
 | 9 | Runtime | **Sub-5-minute target via bounded concurrency** | Per-scenario DB files replace serialisation; API cases and smoke probes run in bounded batches; UI stays serial per world (§14.4). |
 | 10 | Presentation | **Out of scope** | The video and the live demo are handled by the team separately; nothing in the build is shaped around recording (§22). |
+| 11 | Triage | **Gemini classifies; Jev does not** | Gemini emits an advisory typed triage block (category, severity, rationale, confidence) that never gates anything (§10.4). Recorded because live testing proved Jev cannot emit free text at all (§11.3). |
+| 12 | Branch policy | **Main-based sync, not track branches** | Both builders push to `main`, running `git pull --rebase` immediately before every push and keeping commits inside their own §17 paths. This relaxes §19's track-branch scheme for speed and is recorded as a deliberate deviation. |
+
+---
+
+## 32. Track A kickoff notes (verified 19 September, before the freeze)
+
+Track A has not started. Everything below was verified live today against the real APIs and workspaces, so Track A can begin without re-deriving any of it.
+
+### 32.1 Already done for you
+
+- **Modal is configured and working.** Workspace profile `jxzxl07`; environments `main`, `nightwatch-a`, `nightwatch-b`, `nightwatch-demo`; secrets placed exactly as §16.1 requires — `nightwatch-a`: `nightwatch-gemini` + `nightwatch-control` · `nightwatch-b`: `nightwatch-typesafe` + `nightwatch-evidence-ingest` · `nightwatch-demo`: all six.
+- Akshay's laptop authenticates against that workspace, and Jazil remains the only person who runs `modal deploy`.
+- The repo scaffold is pushed: uv project, Python 3.12 pinned, `uv.lock`, `.env.example`, `.gitignore`, and the §16 directory tree.
+
+### 32.2 Verified preflight facts — use these, do not re-derive them
+
+- **Gemini**: `gemini-3.8-flash` answered a live strict-typed call through `pydantic-ai-slim[google]`; the key works, and **free-form string fields are supported** (this is why triage lives here).
+- **TypeSafe**: `jev-1.13.0` answered a live call. See §11.3 for the hard output constraints, the `Choice`/`ChoiceAnswer` shapes, the missing `api_key` parameter and the first pilot confidence reading.
+- **Not yet run**: the Modal Sandbox + Connect Token smoke — Track B is running it now.
+
+### 32.3 What Track A ships first (Track B's critical path is blocked on it)
+
+In this order, because Track B's browser path waits on all three:
+
+1. `apps/contracts/browser.py` — the strict observation, decision and frame models;
+2. `POST /internal/frames` — the multipart contract **plus a frozen example and a contract test** (Track B renders the three-pane wall against it);
+3. the browser-barrier endpoints — readiness generation and synchronized release.
+
+`apps/contracts/` is still empty in the repo. Nothing else on Track A blocks Track B.
+
+### 32.4 Triage — decided, and it is Track A's work
+
+Gemini owns incident triage; Jev does not (§10.4). Track A implements it in the Gemini agent and the incident contracts. Track B must not implement it.
+
+### 32.5 Sync rules
+
+- The **public GitHub repo is the sync remote**. Both builders push to `main`, run `git pull --rebase` immediately before every push, and keep every commit inside their own §17 paths.
+- Never commit `.env`, a key or a token; the secret scan runs before every push. The repo is public.
+- Track B has already pushed the storefront (`apps/storefront/**`, commit `a475f15`). Its `assets/api.js` holds **assumed** request/response field names behind a freeze note: the freeze reconciles that file against `apps/contracts/**` and `apps/live_store/**` before any end-to-end run.
