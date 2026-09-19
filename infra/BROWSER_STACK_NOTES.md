@@ -103,3 +103,7 @@ Browser spend stops here per plan §11.8 (reduced mode from the T+1:30 gate). Th
 record is deliberately precise: two driver-level blockers are **proven**, and this
 third mechanism is **untested, not disproven**. Nothing in the demo or the receipt may
 reference a browser journey.
+
+Card 4 — first navigation through the driver-owned loopback CDP endpoint directly
+(bypassing the typed surface) — is **untested and was not attempted**; it is out of
+scope unless explicitly reopened after the core demo is rehearsing.
