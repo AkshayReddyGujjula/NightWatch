@@ -81,3 +81,25 @@ full evidence JSON and writes `artifacts/browser_gate_<ts>.json`.
   fails against a live, PID-owned endpoint. Browser scenarios are declared
   `ERROR_BROWSER_STACK` (reduced mode) until a driver fix or version change.
   No substitute browser controller (ADR-007).
+
+## Final carve-out result (card 3 attempt, 19 Sep ~14:00)
+
+The last approved mechanism — a driver-owned `isolated_named` profile, re-entered
+through the isolated flow (which avoids the existing-profile endpoint proof) with
+Chrome startup URLs seeded between sessions — was attempted in one bounded probe and
+**not fully exercised**:
+
+- the second `browser_prepare` did reuse the named profile
+  (`reused_driver_profile: true`, `created_profile: false`), so named-profile
+  persistence works;
+- but the profile directory could not be located from the browser process cmdline
+  (`--user-data-dir=` absent), so the startup-URL preference was never seeded and the
+  page stayed on `about:blank`;
+- the blank-page refusals were unchanged: `get_browser_state` (semantic_v2) refused
+  with `authorization_host_failed`, `browser_navigate` refused with
+  `protected_resource_scope_invalid`.
+
+Browser spend stops here per plan §11.8 (reduced mode from the T+1:30 gate). The
+record is deliberately precise: two driver-level blockers are **proven**, and this
+third mechanism is **untested, not disproven**. Nothing in the demo or the receipt may
+reference a browser journey.
