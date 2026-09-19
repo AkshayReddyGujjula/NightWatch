@@ -1,14 +1,31 @@
 import registryJson from "../../../../fixtures/scenarios.json";
+import {
+  UNAVAILABLE_RESULTS,
+  negativeControlCell,
+  scenarioCell,
+  type EvaluationResults,
+  type ResultCellView,
+} from "../api/matrix";
 import type { ScenarioRegistry } from "../generated/evaluation_ScenarioRegistry";
+import type { CandidateId } from "../generated/evaluation_ScenarioResult";
 import { Panel } from "./Panel";
 
-// The registry skeleton is Track A's frozen fixture — spec, not results. Every
-// result cell stays empty until the control API returns committed evidence.
+// The registry skeleton is Track A's frozen fixture — spec, not results. Result
+// cells render exclusively from committed results handed in by the API client;
+// until a source is frozen every cell is labelled, never guessed (api/matrix.ts).
 const registry = registryJson as ScenarioRegistry;
 
-const CANDIDATES = ["A", "B", "C"] as const;
+const CANDIDATES: CandidateId[] = ["A", "B", "C"];
 
-export function ScenarioMatrix() {
+function ResultCell({ view }: { view: ResultCellView }) {
+  return (
+    <span className={`result ${view.tone}`} title={view.trace}>
+      {view.label}
+    </span>
+  );
+}
+
+export function ScenarioMatrix({ results = UNAVAILABLE_RESULTS }: { results?: EvaluationResults }) {
   return (
     <Panel title="Scenario matrix — S01–S08 + negative controls" className="wide">
       <table>
@@ -29,8 +46,8 @@ export function ScenarioMatrix() {
               <td>{scenario.surface}</td>
               <td className="mono">{scenario.invariants.join(" ")}</td>
               {CANDIDATES.map((candidate) => (
-                <td key={candidate} className="cell-empty">
-                  no result
+                <td key={candidate}>
+                  <ResultCell view={scenarioCell(candidate, scenario.scenario_id, results)} />
                 </td>
               ))}
             </tr>
@@ -38,21 +55,21 @@ export function ScenarioMatrix() {
           {registry.negative_controls.map((control) => (
             <tr key={control.control_id} className="nc-row">
               <td className="mono">{control.control_id}</td>
-              <td>oracle control</td>
+              <td title={control.description}>oracle control</td>
               <td className="mono">must FAIL {control.must_fail.join(" ")}</td>
-              {CANDIDATES.map((candidate) => (
-                <td key={candidate} className="cell-empty">
-                  not run
-                </td>
-              ))}
+              <td colSpan={CANDIDATES.length}>
+                <ResultCell view={negativeControlCell(control, results)} />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="caption">
-        Registry loaded from <code>fixtures/scenarios.json</code> (frozen Track A fixture); results
-        arrive from the control API. The negative controls must fail for their intended invariants —
-        that is what makes every PASS above them trustworthy.
+        Registry loaded from <code>fixtures/scenarios.json</code> (frozen Track A fixture). Result
+        cells render committed evidence only. Until the control API serves per-scenario and
+        negative-control results, every cell stays labelled <code>no result</code> /{" "}
+        <code>not run</code> — never a guess. A negative control that fails its intended invariants
+        is the expected outcome; one that passes is a red flag.
       </p>
     </Panel>
   );

@@ -122,3 +122,29 @@ Mechanical correction, contained to Track B-owned files:
 `modal/services_a.py` needs **no change**: it still defines `app` and binds its
 four functions; it imports nothing from Track B. Paths, ownership and the
 one-App rule are untouched; no second `modal.App` may exist.
+
+## 2026-09-19 - Track B: dashboard needs a frozen committed-results source (request)
+
+**By:** Track B (Akshay) · **Status:** request · **Wire impact:** none yet (nothing invented)
+
+Track B's dashboard data plumbing is in place (`apps/dashboard/src/api/**`): a typed
+client whose response types are the generated modules, a fetch-based SSE subscriber
+with `Last-Event-ID` replay, and a scenario-matrix read model that renders PASS/FAIL
+including negative controls. Route paths come from plan §9.1
+(`GET /api/incidents/{id}/receipt`, `GET /api/incidents/{id}/events`).
+
+Two things only the contract owner can freeze before committed data can render:
+
+1. **Evaluation results for the matrix (S01-S08 + NC-01/NC-02).** No frozen shape
+   carries per-scenario `ScenarioResult` rows or negative-control outcomes with
+   evidence ids - the receipt's `candidate_matrix` is candidate-level only. Track B
+   will not invent a route or payload. Choose the shape (a route such as
+   `GET /api/runs/{run_id}/evaluations`, or receipt fields) and Track B adjusts
+   `apps/dashboard/src/api/**` only - no component changes.
+2. **SSE frame convention.** Track B's client assumes each SSE `id:` is the committed
+   `event_id` and each `data:` frame is strict `IncidentEvent` JSON (plan §9.1 says
+   `Last-Event-ID` replay). Confirm or correct.
+
+Until both land, every matrix cell stays `no result` / `not run` and the live panels
+stay labelled-empty - no guesses. When the `IncidentSnapshot` / `SafeStopRequest`
+schemas land, integration re-runs `npm run gen:types` before any client method is added.

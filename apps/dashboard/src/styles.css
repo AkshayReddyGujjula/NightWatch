@@ -5,6 +5,8 @@
   --ink: #dbe4ee;
   --muted: #7d8ea3;
   --warn: #f4b942;
+  --pass: #6fcf97;
+  --fail: #eb6f6f;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
@@ -159,8 +161,26 @@ th {
   letter-spacing: 1px;
 }
 
-.cell-empty {
+.result {
+  font: 600 12px var(--mono);
+}
+
+.result.none {
   color: #46566a;
+}
+
+.result.pass,
+.result.expected {
+  color: var(--pass);
+}
+
+.result.fail,
+.result.unexpected {
+  color: var(--fail);
+}
+
+.result.warn {
+  color: var(--warn);
 }
 
 .nc-row td {

@@ -1,0 +1,22 @@
+/**
+ * Control-API route builders — the single place route paths live.
+ *
+ * Every path below is from the frozen control API table (plan §9.1). This file
+ * invents nothing: response types are the generated modules in
+ * `src/generated/**` (codegen from `apps/contracts/schemas`). If the
+ * implementation moves a path, this file and `client.ts` change — never a
+ * component.
+ */
+
+const API_ROOT = "/api";
+
+function incidentPath(incidentId: string): string {
+  return `${API_ROOT}/incidents/${encodeURIComponent(incidentId)}`;
+}
+
+export const routes = {
+  /** `GET /api/incidents/{id}/receipt` — canonical signed/hashed receipt JSON. */
+  incidentReceipt: (incidentId: string) => `${incidentPath(incidentId)}/receipt`,
+  /** `GET /api/incidents/{id}/events` — SSE replay from the committed event table. */
+  incidentEvents: (incidentId: string) => `${incidentPath(incidentId)}/events`,
+} as const;
