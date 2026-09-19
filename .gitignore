@@ -1,0 +1,53 @@
+# ============================================================================
+# NightWatch .gitignore
+# The repo is PUBLIC. Secrets never land here - see .env.example for the list.
+# ============================================================================
+
+# --- secrets: must never be committed ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# uv.lock IS committed on purpose (pinned dependency versions for the freeze).
+# Do not add it here.
+
+# --- node / dashboard build output ---
+node_modules/
+apps/dashboard/dist/
+# generated at deploy from apps/dashboard/dist, mounted read-only (plan 16)
+apps/control_plane/static/
+
+# --- runtime artifacts: receipts, evidence bundles, frames, app databases ---
+artifacts/
+frames/
+evidence/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+# If a seed ever ships as a .sqlite fixture rather than fixtures/store_seed.sql,
+# un-ignore it explicitly on the next line.
+# !fixtures/*.sqlite
+
+# --- modal ---
+.modal/
+
+# --- os / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
