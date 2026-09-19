@@ -45,6 +45,10 @@ evidence/
 # --- modal ---
 .modal/
 
+# --- working notes / agent handoff prompts (kept locally, never published) ---
+temp*.md
+docs/temp*.md
+
 # --- os / editor ---
 .DS_Store
 Thumbs.db
