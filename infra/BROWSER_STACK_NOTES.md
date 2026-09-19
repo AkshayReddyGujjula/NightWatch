@@ -170,6 +170,15 @@ scope unless explicitly reopened after the core demo is rehearsing.
   One earlier run also recorded `fill_email` executions and an abstention
   (`abstain`, confidence 0.65) when the value did not land.
 - 9 screenshots captured in the atom runs, 5 distinct hashes.
+- **Click verified** (`artifacts/browser_type_1789828818.json`, Sandbox
+  `sb-IWddk8iLavG4lOQA0WZUCv`): with a ref taken from the newest snapshot,
+  `browser_click {ref, input_route: "dom_event"}` on **Pay now** returned
+  `{"effect": "unverifiable", "route": "dom", "escalation":
+  {"reason": "effect_unconfirmed", "target": "page"}}` and the next fresh
+  snapshot contains the page's own validation banner
+  `"Email and delivery address are required."` — a real typed click confirmed
+  from the page, exactly as plan §11.4 requires ("never assume a dispatched
+  click proves activation"). Click screenshot sha256 `ae135580…`, 42,992 bytes.
 
 ### Recorded limitations (do not overclaim)
 
