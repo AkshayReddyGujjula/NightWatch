@@ -13,9 +13,13 @@ from fastapi import FastAPI, Request, Response
 
 from apps.control_plane.config import ControlSettings
 from apps.control_plane.containment import ContainmentControl, HttpContainmentControl
+from apps.control_plane.orchestration import (
+    IncidentOrchestrator,
+    build_default_orchestrator,
+)
+from apps.control_plane.orchestration_store import OrchestrationControlStore
 from apps.control_plane.public_routes import router as public_router
 from apps.control_plane.routes import DEFAULT_BARRIER_TIMEOUT_SECONDS, ReferenceSink, router
-from services.control_store import ControlStore
 
 
 def create_app(
@@ -24,6 +28,7 @@ def create_app(
     barrier_timeout_seconds: float = DEFAULT_BARRIER_TIMEOUT_SECONDS,
     db_path: str | None = None,
     containment: ContainmentControl | None = None,
+    orchestrator: IncidentOrchestrator | None = None,
     lifespan: Any = None,
 ) -> FastAPI:
     resolved = settings or ControlSettings()
@@ -31,10 +36,16 @@ def create_app(
     app.state.settings = resolved
     app.state.frames = ReferenceSink(timeout_seconds=barrier_timeout_seconds)
     path = db_path if db_path is not None else (resolved.control_db_path or ":memory:")
-    app.state.control_store = ControlStore(path)
+    app.state.control_store = OrchestrationControlStore(path)
     app.state.containment = containment or HttpContainmentControl(
         resolved.live_store_base_url,
         resolved.live_internal_token,
+    )
+    app.state.orchestrator = orchestrator or build_default_orchestrator(
+        store=app.state.control_store,
+        environment=resolved.modal_environment,
+        base_commit_sha=resolved.current_commit_sha,
+        gemini_model=resolved.gemini_model,
     )
 
     @app.middleware("http")

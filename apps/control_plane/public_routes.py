@@ -16,6 +16,7 @@ from apps.contracts.control import (
     WorldHealth,
 )
 from apps.contracts.lease import RepairReceipt
+from apps.control_plane.orchestration import orchestrate_incident
 from services.control_store import ControlStore
 
 router = APIRouter(prefix="/api")
@@ -84,7 +85,21 @@ async def run_incident(incident_id: str, request: Request) -> IncidentSnapshot:
     snapshot, created = _store(request).begin_run(incident_id)
     if not created:
         return snapshot
-    return await _contain(request, incident_id)
+    contained = await _contain(request, incident_id)
+    if contained.state != "SAFE_HOLD" or not contained.containment_verified:
+        return contained
+    try:
+        return await orchestrate_incident(request.app.state.orchestrator, contained)
+    except Exception as exc:  # noqa: BLE001 - injected seams must also fail closed
+        reason = f"ORCHESTRATION_ERROR:{type(exc).__name__}:{exc}"
+        _store(request).append_event(
+            incident_id,
+            "ESCALATED",
+            {"reason": reason[:500]},
+            state="ESCALATED",
+            degraded_reason=reason[:512],
+        )
+        return _store(request).get_snapshot(incident_id)
 
 
 @router.post(

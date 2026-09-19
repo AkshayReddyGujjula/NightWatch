@@ -17,3 +17,5 @@ class ControlSettings(BaseSettings):
     live_store_base_url: str = ""
     live_internal_token: str = ""
     control_db_path: str = ""
+    current_commit_sha: str = ""
+    gemini_model: str = ""

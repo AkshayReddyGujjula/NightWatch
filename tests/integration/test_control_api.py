@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from apps.contracts.control import EvaluationResults, WorldHealth
+from apps.contracts.control import EvaluationResults, IncidentSnapshot, WorldHealth
 from apps.contracts.payment import RouterState
 from apps.control_plane.app import create_app
 from apps.control_plane.config import ControlSettings
@@ -38,11 +38,19 @@ class FailingContainment:
         raise RuntimeError("router unavailable")
 
 
+class ContainmentOnlyOrchestrator:
+    """Keep foundation route tests focused on containment and replay."""
+
+    async def orchestrate(self, snapshot: IncidentSnapshot) -> IncidentSnapshot:
+        return snapshot
+
+
 def make_client(tmp_path: Path, containment: object) -> tuple[TestClient, object]:
     app = create_app(
         ControlSettings(nightwatch_operator_token=TOKEN),
         db_path=str(tmp_path / "control.db"),
         containment=containment,  # type: ignore[arg-type]
+        orchestrator=ContainmentOnlyOrchestrator(),
     )
     return TestClient(app), app
 

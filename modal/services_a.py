@@ -63,6 +63,7 @@ TRUSTED_IMAGE = (
         "uvicorn[standard]",
         "pydantic",
         "pydantic-settings",
+        "pydantic-ai-slim[google]",
         "httpx",
         "python-multipart",
     )
@@ -319,6 +320,9 @@ def live_store_asgi() -> FastAPI:
         modal.Secret.from_name("nightwatch-control"),
         modal.Secret.from_name("nightwatch-live-internal"),
         modal.Secret.from_name("nightwatch-evidence-ingest"),
+        # Gemini is called only by the trusted control-plane orchestrator. The
+        # secret is never forwarded to a candidate world or browser session.
+        modal.Secret.from_name("nightwatch-gemini"),
     ],
     volumes={VOLUME_MOUNT: CONTROL_VOLUME},
     min_containers=1,
