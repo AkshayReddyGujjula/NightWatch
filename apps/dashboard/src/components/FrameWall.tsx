@@ -6,6 +6,12 @@ import { Empty, Panel } from "./Panel";
 
 /** Plan §11.7: at least 1 fresh frame/second per active world. */
 const FRAME_POLL_INTERVAL_MS = 1_000;
+/**
+ * A source that returns bytes without announcing a `frame_seq` cannot serve
+ * conditional (`after`) reads, so every poll would re-download the full frame.
+ * Poll slowly in that case instead of hammering the route at 1 Hz.
+ */
+const FRAME_UNSEQUENCED_POLL_INTERVAL_MS = 5_000;
 
 /** Plan §11.7 display rule: no fresh frame for 5 s ⇒ the tile shows FRAME_STALLED. */
 const FRAME_STALL_AFTER_MS = 5_000;
@@ -274,11 +280,17 @@ function useLatestFrame(
     let afterSeq: number | null = null;
 
     const poll = async () => {
+      let nextDelay = FRAME_POLL_INTERVAL_MS;
       try {
         const result = await fetchLatestFrame(readConfig, runId, candidateId, afterSeq);
         if (cancelled) return;
         if (result.available) {
           afterSeq = result.seq;
+          if (result.seq === null) {
+            // No announced sequence: conditional reads are impossible, so the
+            // next poll would re-download the full frame. Poll slowly instead.
+            nextDelay = FRAME_UNSEQUENCED_POLL_INTERVAL_MS;
+          }
           setState({
             status: "available",
             blob: result.blob,
@@ -303,7 +315,7 @@ function useLatestFrame(
         }
       }
       if (!cancelled) {
-        timer = setTimeout(() => void poll(), FRAME_POLL_INTERVAL_MS);
+        timer = setTimeout(() => void poll(), nextDelay);
       }
     };
 

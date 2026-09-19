@@ -125,7 +125,8 @@ export async function fetchLatestFrame(
 }
 
 function parseSeqHeader(value: string | null): number | null {
-  if (value === null) return null;
-  const parsed = Number.parseInt(value, 10);
+  // Strict digits only: a claimed typed header must not accept "12abc" as 12.
+  if (value === null || !/^\d+$/.test(value.trim())) return null;
+  const parsed = Number.parseInt(value.trim(), 10);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
