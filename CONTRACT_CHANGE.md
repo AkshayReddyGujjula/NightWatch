@@ -38,6 +38,30 @@ monotonic and read back on every response. No signature field is added now; the 
 shape is unchanged from the frozen contract. If an explicit signature is wanted later,
 it becomes an additive field at the next contract change.
 
+## 2026-09-19 — Track B: shared Modal App seam for `modal/services_a.py` / `modal/services_b.py`
+
+**Requested by:** Track B (Akshay) · **Owner:** Track A (Jazil) + shared shim · **Status:** proposed
+
+`modal/services_a.py` does not exist yet, and the deployable entrypoint (`modal_app.py`,
+Track B-owned shim, §16/§17 “function names frozen; import wiring only”) must compose both
+tracks' functions into **one** `modal.App`. Proposed seam, so neither track invents one:
+
+- `modal/services_a.py` defines the single `app = modal.App("nightwatch")` and binds its
+  functions (`control_asgi`, `live_store_asgi`, `provider_asgi`, `orchestrate_incident`)
+  to it;
+- `modal/services_b.py` does `from modal.services_a import app` and binds `run_candidate`
+  to that same app;
+- `modal_app.py` is wiring only: `from modal.services_a import app  # noqa: F401` and
+  `import modal.services_b  # noqa: F401`.
+
+Exactly one module may own the App object; a second `modal.App` in one deployment would
+silently split the app. If Track A prefers a different owner (e.g. the App defined in
+`modal_app.py` itself and both modules importing it), either shape is fine as long as it is
+exactly one.
+
+**Impact on Track B:** `modal/services_b.py` is held until this is confirmed; the race
+scheduler and world lifecycle do not depend on it.
+
 ## 2026-09-19 — Track B: add `.gitattributes` with `* text=auto` and `*.sh text eol=lf`
 
 **Requested by:** Track B (Akshay) · **Owner:** shared repo root · **File:** `.gitattributes` (new)
