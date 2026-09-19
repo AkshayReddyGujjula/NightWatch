@@ -210,6 +210,7 @@ if [ "$APP_READY" != "1" ]; then
 fi
 
 # ------------------------------------------------- controller-owned browser
+if [ "${NW_BROWSER_ENABLED:-1}" = "1" ]; then
 # The world's Chromium is launched by a generated helper, owned by the
 # controller identity, with a world-local mode-0700 profile and forced
 # accessibility. The helper is the single source of truth for the launch
@@ -320,6 +321,9 @@ WRAPPER
 chmod 0755 "$RUN_DIR/launch_browser.sh"
 "$RUN_DIR/launch_browser.sh"
 CHROME_PID="$(python3 -c "import json;print(json.load(open('/run/nightwatch/browser.json'))['pid'])")"
+else
+  CHROME_PID=""
+fi
 
 # ------------------------------------------------------- runner helper wrapper
 cat >"$RUN_DIR/as_controller.sh" <<'WRAPPER'
