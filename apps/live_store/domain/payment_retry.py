@@ -93,7 +93,31 @@ async def buggy_retry_checkout(
             return PaymentOutcome("FAILED", idempotency_key=used_key, reason=str(exc))
     except ProviderRejected as exc:
         return PaymentOutcome("FAILED", idempotency_key=used_key, reason=str(exc))
-    return PaymentOutcome("PAID", capture_id=capture.capture_id, idempotency_key=used_key)
+    # This handler is deliberately buggy, but the customer-facing demo must not
+    # hide damage that the trusted provider can already prove.  The provider
+    # ledger is outside the store and is therefore the evidence source; failure
+    # to read it never fabricates an incident notice.
+    reason: str | None = None
+    try:
+        captures = await provider.captures(operation_id)
+    except (ProviderUncertain, ProviderRejected):
+        captures = []
+    matching = [
+        row for row in captures if row.amount_minor == amount_minor and row.currency == currency
+    ]
+    if len(matching) > 1:
+        total_minor = sum(row.amount_minor for row in matching)
+        reason = (
+            "PAYMENT INCIDENT: the trusted payment provider recorded "
+            f"{len(matching)} captures totalling £{total_minor / 100:.2f} "
+            f"for this £{amount_minor / 100:.2f} order. You were charged twice."
+        )
+    return PaymentOutcome(
+        "PAID",
+        capture_id=capture.capture_id,
+        idempotency_key=used_key,
+        reason=reason,
+    )
 
 
 async def safe_retry_checkout(

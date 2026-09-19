@@ -183,6 +183,10 @@
         const orderId = pickString(result, ["order_id", "id"]);
         if (orderId) {
           sessionStorage.setItem(`nw.order.${orderId}`, JSON.stringify(result));
+          const incidentMessage = pickString(result, ["message"]);
+          if (incidentMessage) {
+            sessionStorage.setItem(`nw.incident.${orderId}`, incidentMessage);
+          }
           window.location.href = `status.html?order=${encodeURIComponent(orderId)}`;
           return;
         }
@@ -199,7 +203,11 @@
   // ------------------------------------------------------------------- status
 
   const STATUS_VIEW = {
-    PAID: { label: "Paid", kind: "ok", note: "Payment captured once. This order is confirmed." },
+    PAID: {
+      label: "Paid",
+      kind: "ok",
+      note: "NightMart marked this order paid. Trusted provider evidence is checked separately.",
+    },
     PENDING: { label: "Pending", kind: "warn", note: "Waiting for the payment provider." },
     PENDING_CONFIRMATION: {
       label: "Awaiting confirmation",
@@ -258,6 +266,9 @@
       showBanner("No order reference in the URL.", "err");
       return;
     }
+
+    const incidentMessage = sessionStorage.getItem(`nw.incident.${orderId}`);
+    if (incidentMessage) showBanner(incidentMessage, "err");
 
     let timer = null;
     const stopPolling = () => {

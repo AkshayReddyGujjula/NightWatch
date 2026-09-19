@@ -153,7 +153,7 @@ def _apply_outcome(
                 status="PAID",
                 amount_minor=total,
                 currency=CURRENCY,
-                message=None,
+                message=outcome.reason,
             )
         settled = store.get_order(order.order_id)
         return CheckoutResponse(

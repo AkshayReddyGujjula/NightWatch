@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from apps.live_store.router import safe_handler_hash
 from tests.helpers import (
     CHECKOUT_BODY,
+    EVAL_HEADERS,
     LIVE_HEADERS,
     Stack,
     arm_fault,
@@ -17,6 +18,31 @@ from tests.helpers import (
     set_router_mode,
     start_checkout,
 )
+
+
+async def test_operator_can_arm_visible_double_charge_showcase(stack_factory) -> None:
+    stack: Stack = await stack_factory(namespace="ns_demo_setup_control")
+    armed = await stack.store_client.post(
+        "/internal/demo/arm-double-charge", headers=LIVE_HEADERS
+    )
+    assert armed.status_code == 200, armed.text
+    setup = armed.json()
+    assert setup["router"]["mode"] == "BUGGY"
+    assert setup["checkout_x_url"].endswith(f"?intent={setup['intent_id']}")
+
+    checkout = await stack.store_client.post(
+        f"/api/checkout/{setup['intent_id']}", json=CHECKOUT_BODY
+    )
+    assert checkout.status_code == 200, checkout.text
+    result = checkout.json()
+    assert result["status"] == "PAID"
+    assert "You were charged twice" in result["message"]
+
+    ledger = await stack.evaluator_client.get(
+        f"/internal/ledger/{setup['namespace']}", headers=EVAL_HEADERS
+    )
+    assert ledger.status_code == 200, ledger.text
+    assert len(ledger.json()["captures"]) == 2
 
 
 async def test_safe_checkout_pays_exactly_once(stack_factory) -> None:

@@ -57,3 +57,10 @@ def test_storefront_root_renders_catalogue() -> None:
     response = TestClient(create_app(StoreSettings())).get("/")
     assert response.status_code == 200
     assert "NightMart" in response.text
+
+
+def test_storefront_carries_provider_incident_notice_to_status_page() -> None:
+    response = TestClient(create_app(StoreSettings())).get("/assets/storefront.js")
+    assert response.status_code == 200
+    assert "nw.incident.${orderId}" in response.text
+    assert 'showBanner(incidentMessage, "err")' in response.text

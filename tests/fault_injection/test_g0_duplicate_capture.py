@@ -25,6 +25,8 @@ async def test_g0_duplicate_capture_with_immutable_original(stack_factory) -> No
 
     intent_id, body = await start_checkout(original)
     assert body["status"] == "PAID"
+    assert "trusted payment provider recorded 2 captures" in body["message"]
+    assert "You were charged twice" in body["message"]
 
     health = await original.store_client.get("/health")
     assert health.status_code == 200

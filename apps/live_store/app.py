@@ -10,7 +10,7 @@ from __future__ import annotations
 import hmac
 import uuid
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from apps.contracts.base import NonEmptyStr, StrictModel
 from apps.contracts.payment import (
     CheckoutRequest,
     CheckoutResponse,
@@ -50,6 +51,16 @@ class StoreSettings(BaseSettings):
     provider_token: str = ""
     store_db_path: str = ""
     storefront_dir: str = ""
+
+
+class DoubleChargeDemoResponse(StrictModel):
+    scenario: Literal["DOUBLE_CHARGE"] = "DOUBLE_CHARGE"
+    namespace: NonEmptyStr
+    intent_id: NonEmptyStr
+    operation_id: NonEmptyStr
+    checkout_x_url: NonEmptyStr
+    checkout_y_url: NonEmptyStr
+    router: RouterState
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -189,6 +200,80 @@ async def reset_live_store(
     """
     request.app.state.store.reset_live()
     return request.app.state.router.state()
+
+
+def _external_base_url(request: Request) -> str:
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("host", request.url.netloc)
+    return f"{scheme}://{host}".rstrip("/")
+
+
+def _provider_base_url(request: Request) -> str:
+    configured = request.app.state.settings.provider_base_url
+    if configured:
+        return configured.rstrip("/")
+    base = _external_base_url(request)
+    marker = "nightwatch-live-store-asgi"
+    if marker not in base:
+        raise ProviderUncertain("provider URL is not configured for this live-store host")
+    return base.replace(marker, "nightwatch-provider-asgi", 1)
+
+
+@router.post(
+    "/internal/demo/arm-double-charge",
+    response_model=DoubleChargeDemoResponse,
+)
+async def arm_double_charge_demo(
+    request: Request,
+    _: Annotated[None, Depends(require_live_internal)],
+) -> DoubleChargeDemoResponse:
+    """Arm a fresh, real double-capture incident for the public demo UI."""
+    store: Store = request.app.state.store
+    store.reset_live()
+    items = [IntentItem(sku="SKU-A", quantity=1)]
+    intent = store.create_intent(f"cust_demo_{uuid.uuid4().hex[:12]}", items)
+    intent_view = store.intent_response(intent, items)
+    operation_id = f"op_{intent.intent_id}"
+
+    current_provider = request.app.state.provider
+    if isinstance(current_provider, HttpPaymentProvider):
+        provider = current_provider
+    else:
+        provider = HttpPaymentProvider(_provider_base_url(request), "")
+    try:
+        setup = await provider.prepare_double_charge_demo(
+            live_internal_token=request.app.state.settings.live_internal_token,
+            operation_id=operation_id,
+            intent_id=intent.intent_id,
+            amount_minor=intent_view.amount_minor,
+        )
+    except (ProviderRejected, ProviderUncertain) as exc:
+        # reset_live already placed the route in SAFE_HOLD; never enter BUGGY
+        # unless the provider has confirmed a fresh namespace and armed fault.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    namespace = setup.get("namespace")
+    if not isinstance(namespace, str) or not namespace:
+        raise HTTPException(status_code=503, detail="provider demo setup omitted its namespace")
+    request.app.state.provider = provider
+    current = request.app.state.router.state()
+    try:
+        armed = request.app.state.router.set_mode(
+            "BUGGY", expected_generation=current.generation
+        )
+    except StoreError as exc:
+        raise _http_from_store_error(exc) from exc
+
+    base = _external_base_url(request)
+    query = f"intent={quote(intent.intent_id, safe='')}"
+    return DoubleChargeDemoResponse(
+        namespace=namespace,
+        intent_id=intent.intent_id,
+        operation_id=operation_id,
+        checkout_x_url=f"{base}/checkout-x.html?{query}",
+        checkout_y_url=f"{base}/checkout-y.html?{query}",
+        router=armed,
+    )
 
 
 @router.put("/internal/router", response_model=RouterState)

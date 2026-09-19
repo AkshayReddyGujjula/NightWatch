@@ -68,7 +68,13 @@ class FakeProvider:
 
 
 async def test_buggy_retries_with_a_fresh_key_after_a_lost_response() -> None:
-    provider = FakeProvider(outcomes=[ProviderUncertain("lost"), capture_response()])
+    provider = FakeProvider(
+        outcomes=[
+            ProviderUncertain("lost"),
+            capture_response("cap_2"),
+            [capture_row("cap_1", "key_1"), capture_row("cap_2", "key_2")],
+        ]
+    )
     persisted: list[str] = []
 
     outcome = await buggy_retry_checkout(
@@ -84,6 +90,9 @@ async def test_buggy_retries_with_a_fresh_key_after_a_lost_response() -> None:
     assert outcome.status == "PAID"
     assert persisted == ["key_1", "key_2"]
     assert outcome.idempotency_key == "key_2"
+    assert outcome.reason is not None
+    assert "You were charged twice" in outcome.reason
+    assert provider.calls == ["key_1", "key_2", "inquiry:op_1"]
 
 
 async def test_buggy_second_uncertainty_stays_pending() -> None:

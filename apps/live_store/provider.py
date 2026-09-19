@@ -64,6 +64,43 @@ class HttpPaymentProvider:
             raise ProviderRejected(f"provider rejected the call ({response.status_code}): {body}")
         return response
 
+    async def prepare_double_charge_demo(
+        self,
+        *,
+        live_internal_token: str,
+        operation_id: str,
+        intent_id: str,
+        amount_minor: int,
+    ) -> dict[str, object]:
+        """Ask the trusted provider to freeze and arm one demo operation."""
+        client = self._get_client()
+        try:
+            response = await client.post(
+                f"{self._base_url}/internal/demo/double-charge",
+                json={
+                    "operation_id": operation_id,
+                    "intent_id": intent_id,
+                    "amount_minor": amount_minor,
+                    "currency": "GBP",
+                },
+                headers={"Authorization": f"Bearer {live_internal_token}"},
+                timeout=self._timeout,
+            )
+        except httpx.HTTPError as exc:
+            raise ProviderUncertain(f"provider demo setup transport error: {exc}") from exc
+        if response.status_code >= 500:
+            raise ProviderUncertain(f"provider demo setup returned {response.status_code}")
+        if response.status_code >= 400:
+            raise ProviderRejected(
+                f"provider demo setup rejected ({response.status_code}): {response.text[:200]}"
+            )
+        payload: dict[str, object] = response.json()
+        token = payload.get("token")
+        if not isinstance(token, str) or not token:
+            raise ProviderUncertain("provider demo setup omitted its scoped token")
+        self._token = token
+        return payload
+
     async def capture(
         self,
         operation_id: str,

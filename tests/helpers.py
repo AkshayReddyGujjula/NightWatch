@@ -50,7 +50,11 @@ class Stack:
 
 async def build_stack(*, namespace: str) -> Stack:
     provider_app = create_provider_app(
-        ProviderSettings(provider_signing_secret=SIGNING_SECRET, evaluator_token=EVALUATOR_TOKEN),
+        ProviderSettings(
+            provider_signing_secret=SIGNING_SECRET,
+            evaluator_token=EVALUATOR_TOKEN,
+            live_internal_token=LIVE_INTERNAL_TOKEN,
+        ),
         db_path=":memory:",
     )
     evaluator_client = httpx.AsyncClient(
