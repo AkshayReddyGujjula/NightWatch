@@ -1,6 +1,6 @@
 # NightWatch: final six-hour build and architecture plan
 
-**Version:** 1.3, 19 September 2026 — incorporates the two adversarial stress-review passes, the interactive decision review, and the §14.4 sub-5-minute runtime budget; findings are logged in §31  
+**Version:** 1.4, 19 September 2026 — incorporates the two adversarial stress-review passes, the interactive decision review, the §14.4 sub-5-minute runtime budget, and the team decisions that presentation/video are out of scope and the public repo is the sync remote; findings are logged in §31  
 **Status:** implementation-ready; Section 2 is the frozen default unless Akshay and Jazil explicitly change it before the T+0:20 contract freeze  
 **Team:** two builders — **Jazil owns Track A** (domain, trusted authority, Gemini, proof) and **Akshay owns Track B** (Modal, Jev/CUA, dashboard). One laptop/branch owns each whole track; no path is edited by both.  
 **Build window:** T+0 to T+6h from whenever coding actually starts; T+6h to T+7h is submission, recording, secret-scrub and rehearsal time. Fixed anchors, whatever T+0 turns out to be: **19:00 submission** and **20:00 live demo**.  
@@ -1163,7 +1163,6 @@ Track B:
 - Select B or remain held.
 - Execute staged smoke and issue/read back lease.
 - Demonstrate guardian and Safe Stop.
-- Run the complete path once with screen recording as backup.
 
 **Gate G4 at T+5:20:** full or core mode is declared from evidence. Two clean rehearsals are required after the last material change. Do not add optional scope after this gate.
 
@@ -1171,17 +1170,14 @@ Track B:
 
 - Merge with the protocol below.
 - Run all automated gates and two `run_demo --verify` passes.
-- Record the two-minute video using the exact script.
 - Finalise README, architecture/API/safety/demo docs and receipt example.
-- Secret-scan repo, git history in submitted branch, screenshots, logs and video.
+- Secret-scan the public repo, its git history, screenshots and logs.
 - Tag `demo-freeze` locally.
 
 ### T+6:00 until the 19:00 deadline: submission-only buffer
 
-- Publish public repository only when the team chooses to do so.
-- Verify clone-from-scratch setup.
-- Submit video, source and explanation.
-- Rehearse the live two-minute walkthrough and reset procedure.
+- Keep the public sync repository current and verify a clone-from-scratch setup from it.
+- Submit source and explanation; the video is handled separately and is not a build task.
 - No feature work unless it fixes a submission blocker.
 
 ---
@@ -1194,7 +1190,7 @@ Recommended branch names:
 - `track-a/control-proof` and `track-b/modal-jev-cua-ui` from the frozen base;
 - `integration/nightwatch-demo` for the merge.
 
-**Repo/sync decision (team, 19 September): local commits only — no push during the build.** That creates one hard prerequisite: two laptops must still share one repository, or this entire protocol cannot work. Before the contract freeze, choose and record a sync mechanism: a **private remote used purely for sync** (recommended), `git bundle` files exchanged at each gate, or a shared local clone on one machine. Without one of these, two worktrees on two laptops can never merge.
+**Repo/sync decision (team, 19 September): the GitHub repo is public and is the sync remote.** `origin` (`github.com/AkshayReddyGujjula/NightWatch.git`) is the shared repository; both laptops clone from it and push at every gate boundary so the two worktrees always share a base. This makes the repo part of the trust boundary: **API keys and tokens are shared separately, out-of-band, and are never committed, logged or screenshotted** — a secret scan is mandatory before every push (§21, §23).
 
 Safe sequence:
 
@@ -1209,7 +1205,7 @@ Safe sequence:
 9. Resolve only explicit ownership/contract conflicts; never accept a broad generated rewrite.
 10. Run the full gate suite and two demo resets/runs before tagging `demo-freeze`.
 
-No part of this planning task authorises a push, force push, remote change or public publication. Those remain team actions at submission time.
+The team has authorised ordinary pushes to the public sync repository. Force-pushes, history rewrites and anything that could expose a secret remain forbidden; run the secret scan before every push.
 
 ---
 
@@ -1326,51 +1322,11 @@ Pydantic Logfire is optional hosted observability, not the source of truth. If w
 
 ---
 
-## 22. Two-minute video and live demo
+## 22. Presentation and video
 
-### Exact 120-second cut
+Out of scope for this plan by team decision. The two-minute video and the live demo are handled separately by the team, and nothing in the build should be shaped around recording them.
 
-| Time | Screen/action | Narration point |
-| --- | --- | --- |
-| 0–10s | Healthy storefront and `/health` 200 | "Monitoring thinks checkout is healthy." |
-| 10–25s | Trigger response-loss checkout; show two ledger captures | "One logical purchase charged twice because the app changed its idempotency key." |
-| 25–35s | State becomes SAFE_HOLD; next intent has zero captures | "NightWatch contains future harm before asking AI to act." |
-| 35–52s | Three real Modal world IDs appear; the A/B/C browser wall releases together and all three panes visibly update | "Three isolated apps, three Chromium sessions and three CUA agents are testing the same incident concurrently." |
-| 52–70s | Keep all three live panes on screen; open one Jev decision drawer showing bounded choices, snapshot ID, measured FPS and independent ledger check | "Jev decides, CUA acts, and the ledger, not the browser, proves what really happened." |
-| 70–86s | Gemini hypothesis/diff and A/B/C result cards; show one rejection/failure reason | "Gemini proposes; Pydantic gates; the candidate never grades itself." |
-| 86–101s | B selected, staged smoke and router readback | "Only the preinstalled safe handler is eligible for automatic activation." |
-| 101–113s | Protected live-checkout drawer: Jev + CUA completes a new loss-after-capture checkout with exactly one capture | "The uncertain payment is recovered by inquiry, not another charge." |
-| 113–120s | Receipt: prior harm, prevention scope, lease and open work | "We restored safe operation without pretending the original harm vanished." |
-
-Use a recorded full run with genuine timestamps and IDs. For the live walkthrough, keep a reset button/script and the same path. Do not compress a three-minute system run into a fake 90-second claimed recovery; distinguish recorded edit duration from measured incident duration.
-
-### Live-demo runbook (20:00)
-
-- **19:30 pre-warm.** Keep `min_containers=1` on `control_asgi`, `live_store_asgi` and `provider_asgi`, pre-pull the pinned desktop image, and run one throwaway Sandbox so the first judged Sandbox starts warm. Warm-up time is reported outside the measured incident window.
-- **Segments 35–70 s and 101–113 s require the full three-world + Gemini path.** If either stalls live, use a hard **90-second cut-to-recording trigger**: switch to the recorded full run, say plainly which segment failed, and continue from the ledger and receipt. Never improvise a faster path or narrate a run that is not happening.
-- **Two truthful edits exist before the demo.** The full-mode cut above, and a pre-built core-mode cut in which A/B run concurrently, C is labelled `SKIPPED_INVALID`/`COUNTERFACTUAL`, and the browser wall is replaced by the labelled tiles that actually ran. Which edit is shown is decided by the same evidence rules as §3.2/§3.3, not by nerves.
-- **Reset.** One command returns the live store to `SAFE_HOLD` with a fresh run namespace; it never deletes the original incident ledger used as evidence.
-- **If a partner API or the network dies mid-demo:** keep the dashboard on committed events, state the failure plainly, and finish on the receipt. An honest partial run scores better than a fabricated one.
-
-### Thirty-second pitch
-
-> A green health check does not mean money is correct. Our demo store returns 200 while a lost response makes it charge one checkout twice. NightWatch detects that from an independent ledger, stops new captures, and races a rollback, a prepared safe handler and a Gemini-generated patch in three isolated Modal sandboxes. Jev drives changing checkout UIs, Pydantic validates every agent and safety boundary, and deterministic invariants choose what is allowed. We activate only the preinstalled, verified handler under a revocable lease and hand engineers the evidence and proposed permanent patch.
-
-### Judge questions
-
-**Is the failure fake?** The fault is deterministic, but the duplicate is real state: two append-only capture rows under different keys for one registered operation. The detector and negative controls are independent of the app.
-
-**Why AI?** Jev handles semantic interaction across UI variants; Gemini correlates code/log/ledger evidence and proposes a bounded repair. Fixed code owns arithmetic, money invariants, policy and actuation.
-
-**Why not just rollback?** A rollback is tested as Candidate A, but data/schema compatibility makes automatic rollback riskier than switching to an already installed, current-release safe handler. The comparison is evidence, not theatre.
-
-**Did Gemini's patch deploy itself?** No. Candidate C is isolated and proposal-only. The live action is a pre-authorised handler route proven against the same suite.
-
-**Can this handle real payments?** This prototype uses synthetic data and a mock provider. Production would require a real provider's inquiry semantics, audited storage/identity, change management and human policy.
-
-**What did Modal do?** It hosts the services and dashboard, runs three desktop candidate Sandboxes concurrently, and gives each candidate its actual X11/Chromium/CUA environment. The displayed lifecycle and browser-frame evidence comes from those worlds.
-
-**What did Pydantic do?** It defines and rejects every boundary: incident evidence, model outputs, browser actions, scenario results, invariant matrix, state transitions, lease and signed receipt. The demo includes a real malformed-input rejection.
+What still matters to whoever presents: §3.1/§3.2 define what must actually run, §14.4 and the receipt carry the measured timings and evidence, and §15 defines the dashboard. The honest-mode rules (§3.2, §24, §29) apply to anything shown — no fabricated numbers, no replayed frames, and every degraded mode labelled as such.
 
 ---
 
@@ -1387,7 +1343,7 @@ README must contain, in this order:
 7. test commands and expected output;
 8. API endpoint table and links to `docs/API.md`;
 9. safety model, limitations and synthetic-data statement;
-10. two-minute video link, public demo URL if stable and example receipt;
+10. public demo URL if stable, and an example receipt (the video is handled separately);
 11. team members and explicit event-build disclosure.
 
 Before 19:00 verify:
@@ -1395,7 +1351,6 @@ Before 19:00 verify:
 - public repository contains full source and correct licence;
 - clone into a fresh directory and follow README once;
 - no `.env`, keys, tokens, private URLs, cookies or personal paths in source/history/artifacts;
-- video is accessible without permission request and at most two minutes;
 - all partner claims match the latest receipt;
 - API/framework/tool docs are present;
 - screenshots show no token query strings;
@@ -1580,7 +1535,7 @@ Two adversarial review passes were run against this document before the build wi
 | T6 | MAJOR | A Choice accepts at most 255 options, so an uncapped candidate map can fail at runtime. | §11.3: cap the offered set at 253 including reserved options, and fail closed with a logged omitted count above it. |
 | T7 | MAJOR | A `max_containers=1` control process cannot serve SSE plus per-500 ms frame polls plus CAS without declaring input concurrency. | §4.2: the ASGI functions must declare `@modal.concurrent(max_inputs=…)` sized for the SSE stream, the three frame polls and the writes. |
 | T8 | MAJOR | The `<180 s` incident-to-lease target is not achievable once three desktop Sandboxes cold-start. | §3.3: the 180-second figure now applies only to `DETECTED -> SAFE_HOLD`; the full run is reported as a measured duration with no promised number. |
-| T9 | MAJOR | The full-demo contract plus two clean rehearsals is over-scoped for two people and six hours. | §3.2, §11.8, §18 and §22: the **core demo is the committed deliverable**; the three-browser wall and full S01–S08 are the target, declared from evidence at G3/G4, with a pre-built truthful core-mode video cut. |
+| T9 | MAJOR | The full-demo contract plus two clean rehearsals is over-scoped for two people and six hours. | §3.2, §11.8, §18 and §22: the **core demo is the committed deliverable**; the three-browser wall and full S01–S08 are the target, declared from evidence at G3/G4. |
 | T10 | MINOR | Enabling Modal's domain-only egress allowlist would silently block the in-world browser's loopback origin. | §12.2: also allow `127.0.0.1/32`, or do not claim egress isolation. |
 | T11 | MINOR | `BrowserFrame` conflated capture and snapshot IDs, and a sampler minting fresh semantic snapshots can invalidate the refs Jev judged. | §7.1 and §11.7: frames are identified by image SHA-256 plus the snapshot ID returned by the same call, and the sampler uses `get_browser_state(include_screenshot=true)` without minting a new semantic snapshot. |
 | T12 | MINOR | `browser_prepare` requires a platform-attested or root-owned Chromium, and `Sandbox.exec` has no per-user parameter. | §11.6 and §12.2: Chromium is installed as a root-owned package, and the bootstrap performs an explicit `setpriv`/`su` privilege drop with recorded effective UIDs. |
@@ -1600,7 +1555,7 @@ Two adversarial review passes were run against this document before the build wi
 | D9 | MAJOR | `apps/live_store/**` is baked into Track B's image digest, so a late Track A change silently invalidates recorded evidence. | §6: the bundle hash is frozen at T+2:20; any later change voids prior evidence and forces a full re-run. |
 | D10 | MAJOR | The frame-stall rule could fail a payment-correct candidate for a display-timing reason. | §3.1, §11.7, §13.2 and §15.1: the thresholds moved to 5/10 s, the stall clock freezes during an in-flight action, and a frame-stream failure degrades only the display/browser-evidence claim. |
 | D11 | MAJOR | With A and C ineligible by construction, "the evidence chose the repair" reads to a judge as "you always flip the preinstalled switch". | §14.1: counterfactual labelling is mandatory, the claim is restated as verification rather than suspense, and `LEGACY` is now a committed genuinely live-eligible second route with a hard drop rule at Gate G3. |
-| D12 | MAJOR | There was no live-demo runbook for the 20:00 slot and no reduced-mode video cut. | §22: pre-warm, a 90-second cut-to-recording trigger, a second truthful core-mode edit, and the reset procedure. |
+| D12 | MAJOR | There was no live-demo runbook for the 20:00 slot and no reduced-mode video cut. | Superseded by team decision: presentation and video are handled outside this plan (§22); the engineering guarantees they rely on live in §3.1/§3.2, §14.4 and §15. |
 | D13 | MINOR | `StrictModel` set `frozen=True` and `validate_assignment=True` together, which is inert and misleading. | §7: `validate_assignment` removed with the reason stated, and a separate mutable base prescribed where assignment validation is genuinely needed. |
 | D14 | MINOR | Frozen "generated JSON Schemas" never said how the dashboard obtains TypeScript types. | §16.1: one codegen path (`npm run gen:types`) from committed schemas, so no hand-written client schema exists on either branch. |
 | D15 | MINOR | §1 claimed no scoring rubric had been supplied, while the team did have one. | §1: the 50/20/30 rubric and the two side prizes are now stated and used to prioritise. |
@@ -1608,7 +1563,7 @@ Two adversarial review passes were run against this document before the build wi
 ### 31.3 Open risks accepted with eyes open
 
 - **Modal egress isolation may not be configurable** for candidate sandboxes; the narrow, expiring provider token remains the real boundary, and the receipt must say so.
-- **CUA-on-gVisor may still fail at T+0:50.** Reduced mode is pre-planned, pre-cut and honest; that is a scope outcome, not a plan failure.
+- **CUA-on-gVisor may still fail at T+0:50.** Reduced mode is pre-planned and honest; that is a scope outcome, not a plan failure.
 - **Every pinned version** (Modal SDK, CUA Driver, Chromium, `jev-1.13.0`, the Gemini model) is verified at the T+0 preflight against live SDK types. If they disagree with this document, the adapter is updated and the tested version recorded — never the reverse.
 - **Two people, six hours.** The committed scope is §3.2; everything in §3.1 is earned, not assumed.
 
@@ -1624,6 +1579,7 @@ Recorded so they are never re-litigated mid-build:
 | 4 | Evidence source | **Trusted outside oracle** | Ledger, oracle and fixtures live outside candidate worlds; candidates hold only scoped, expiring tokens. |
 | 5 | Track ownership | **Akshay = Track B; Jazil = Track A** | Keys follow ownership: Jev stays with Akshay, the Gemini key is shared to Jazil. |
 | 6 | Accounts and deploy | **Jazil's workspace; Jazil deploys** | Three environments (`nightwatch-a`, `nightwatch-b`, `nightwatch-demo`); Akshay never runs `modal deploy`. |
-| 7 | Repo handling | **Local commits only** | One hard prerequisite: choose a sync mechanism (private remote, `git bundle`, or shared clone) before the freeze — see §19. |
+| 7 | Repo handling | **Public repo as the sync remote** | `origin` is shared and pushed at every gate boundary; keys travel out-of-band and are never committed — see §19. |
 | 8 | Start time | **T+0 decided by the team** | The plan is written in relative time; only the 19:00 submission and 20:00 demo are fixed. A late start cuts scope from the back, never compresses gates. |
 | 9 | Runtime | **Sub-5-minute target via bounded concurrency** | Per-scenario DB files replace serialisation; API cases and smoke probes run in bounded batches; UI stays serial per world (§14.4). |
+| 10 | Presentation | **Out of scope** | The video and the live demo are handled by the team separately; nothing in the build is shaped around recording (§22). |
