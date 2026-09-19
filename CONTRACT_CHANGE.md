@@ -253,3 +253,25 @@ temp dev App in `nightwatch-b` that binds the same `run_candidate_impl` with onl
 `nightwatch-evidence-ingest`. Decision needed from Jazil: mirror the three secret
 names into `nightwatch-b`, or record that ephemeral shared-app runs target
 `nightwatch-demo` (with the volume-warm caveat above).
+
+## 2026-09-19 — Track B → Track A: pull main and deploy the composed app (coordination)
+
+**By:** Track B (Akshay) · **Status:** action requested from the sole deployer
+
+Track B's browser/scale slice is pushed to `main` (`04102c5`). Please
+`git pull --rebase` on your laptop and deploy the composed `nightwatch` app to
+`nightwatch-demo` when convenient. Track A's pending contract items for the
+same window:
+
+1. sink swap: `app.state.frames = services.frames.store.FrameStore(...)` in
+   `apps/control_plane/app.py` (drop-in surface, same error classes);
+2. one-line byte forward: `sink.accept_frame(frame, image=bytes(payload))` in
+   `ingest_frame`, so the frame-bytes route can serve real bytes;
+3. the additive `GET /api/runs/{run_id}/frames/{candidate_id}/latest?after=`
+   route with `X-Frame-Seq` (or tell Track B the header name you freeze);
+4. optional: widen `CandidateId` to admit `C1..CN` (kind/rank unchanged).
+
+Once the deployed app is live, Track B will smoke the deployed runner with
+`modal.Function.from_name("nightwatch", "run_candidate").map(...)` and record
+the real function/call IDs. Nothing in this request is implemented by Track B
+in Track A-owned files.
