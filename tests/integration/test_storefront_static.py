@@ -14,11 +14,13 @@ def test_storefront_pages_and_assets_are_served_without_shadowing_api() -> None:
     checkout_x = client.get("/checkout-x.html")
     assert checkout_x.status_code == 200
     assert "Pay now" in checkout_x.text
+    assert 'type="text" inputmode="email" autocomplete="email"' in checkout_x.text
 
     checkout_y = client.get("/checkout-y.html")
     assert checkout_y.status_code == 200
     assert "Confirm order" in checkout_y.text
     assert "Add voucher" in checkout_y.text
+    assert 'type="text" inputmode="email" autocomplete="email"' in checkout_y.text
 
     assert client.get("/assets/api.js").status_code == 200
     assert client.get("/health").json()["service"] == "live_store"

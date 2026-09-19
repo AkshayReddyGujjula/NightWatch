@@ -110,6 +110,7 @@ DESKTOP_IMAGE = (
         "fastapi==0.141.1",
         "uvicorn[standard]==0.53.0",
         "pydantic==2.13.5",
+        "pydantic-settings==2.13.1",
         "httpx==0.28.1",
     )
     .add_local_file(

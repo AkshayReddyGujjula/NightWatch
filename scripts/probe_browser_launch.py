@@ -38,8 +38,9 @@ for entry in (str(_REPO_ROOT), str(_SCRIPTS)):
     if entry not in sys.path:
         sys.path.insert(0, entry)
 
-import modal  # noqa: E402
 import probe_browser_journey as base  # noqa: E402
+
+import modal  # noqa: E402
 
 app = modal.App("nightwatch-b-browser-launch")
 
@@ -145,7 +146,9 @@ def main() -> None:
         evidence["bootstrap_exit_code"] = code
         if code != 0:
             raise base.ProbeError(f"world bootstrap failed: {(stderr or stdout)[-600:]}")
-        code, text, _ = base._exec(sandbox, "cat", "/run/nightwatch/world-evidence.json", timeout=30)
+        code, text, _ = base._exec(
+            sandbox, "cat", "/run/nightwatch/world-evidence.json", timeout=30
+        )
         evidence["world"] = base._json_from(text)
         socket_path = str(evidence["world"].get("cua_socket") or "/run/nightwatch/cua.sock")
         driver = base.CuaDriver(sandbox, evidence, socket_path)

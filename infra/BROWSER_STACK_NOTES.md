@@ -3,6 +3,16 @@
 Evidence log for plan §11.8. Keep this current: the receipt and README must
 reflect exactly what is proven here.
 
+> **STATUS 19 Sep 15:04 UTC — FULL CHECKOUT COMPLETED.** The labelled text-input
+> workaround allowed CUA 0.28.2 to write Email. In Sandbox
+> `sb-M8dvUYxaTsq2uHEQiSUORp`, Jev chose `fill_address`, then `pay_now`; the
+> trusted probe server recorded order `probe-order-1` for `probe@example.com`,
+> and the terminal semantic snapshot plus frame showed `PAID` and “Payment
+> captured once. This order is confirmed.” The CDP first hop remains a recorded
+> deviation. Exact evidence is `artifacts/browser_type_1789830273.json`; terminal
+> frame SHA-256 is
+> `7771dd3d89efc9c6f9d5233fe7fe26a03c824d43bf385b47365bd6e494510323`.
+
 > **STATUS 19 Sep ~17:10 — SUPERSEDES every earlier "blocked" verdict below.**
 > The typed journey **is green** on the driver-launched isolated browser:
 > `browser_prepare {"allow_launch": true, "profile": {"mode": "isolated_new"}}`
@@ -196,6 +206,19 @@ scope unless explicitly reopened after the core demo is rehearsing.
   candidate worlds that need a browser must use the driver-launched isolated
   profile and the runner must perform the recorded hop.
 
+### Labelled CUA 0.28.2 email-field workaround
+
+The required `browser_type` retry with `input_route: "dom_event"` was accepted
+as an argument but still refused the write via `route: trusted_input`,
+`reason: route_unavailable`; it did not solve the `<input type="email">`
+failure. Track B therefore changed both storefront Email controls to
+`<input type="text" inputmode="email" autocomplete="email">`. The visible
+label, submitted field name and email keyboard/autofill hints are unchanged.
+This is a labelled driver workaround for CUA Driver 0.28.2, not a product
+behaviour change. A checkout is not claimed until a fresh typed snapshot shows
+the status page's `Paid` state and the trusted probe server records the matching
+checkout post.
+
 ### Reproduce
 
 - `uv run modal run -e nightwatch-b scripts/probe_browser_launch.py` — Route X,
@@ -204,3 +227,22 @@ scope unless explicitly reopened after the core demo is rehearsing.
   variants and the click probe
 - `uv run modal run -e nightwatch-b scripts/probe_browser_journey.py` — Route A
   endpoint diagnosis (red)
+
+### Full checkout evidence (19 Sep 15:04 UTC)
+
+- Email write: `replace_true` through `trusted_input`, verified from the next
+  fresh snapshot as `probe@example.com`.
+- Jev 1.13.0 selected `fill_address` and then `pay_now`; all action candidates,
+  probabilities and observation hashes are recorded in
+  `artifacts/browser_type_1789830273.json`.
+- Trusted server postcondition: one checkout post for `probe-intent-1`, order
+  `probe-order-1`, matching the fixture email.
+- Page postcondition: `status.html?order=probe-order-1`, semantic outline `PAID`
+  and `Payment captured once. This order is confirmed.`; terminal frame SHA-256
+  `7771dd3d89efc9c6f9d5233fe7fe26a03c824d43bf385b47365bd6e494510323`.
+- Harness nuance: that run's first strict terminal parser searched actionable
+  refs only, so its summary boolean is false even though the raw semantic
+  outline and copied frame prove the page postcondition. The parser now checks
+  the semantic outline too. A subsequent stochastic run wrote Email but Jev
+  abstained after the first address write was refused; it is retained as
+  `artifacts/browser_type_1789830467.json`, not presented as a success.

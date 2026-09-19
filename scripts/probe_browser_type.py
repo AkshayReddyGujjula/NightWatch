@@ -31,13 +31,14 @@ for entry in (str(_REPO_ROOT), str(_SCRIPTS)):
     if entry not in sys.path:
         sys.path.insert(0, entry)
 
-import modal  # noqa: E402
 import probe_browser_journey as base  # noqa: E402
 from probe_browser_launch import (  # noqa: E402
     _copy_out,
     _listener_ports,
     _port_for_pid,
 )
+
+import modal  # noqa: E402
 
 app = modal.App("nightwatch-b-browser-type")
 
@@ -63,6 +64,29 @@ def _ref_by_name(snapshot: dict[str, Any], name: str) -> dict[str, Any] | None:
         (ref for ref in base._refs(snapshot) if str(ref.get("name", "")).lower() == name),
         None,
     )
+
+
+def _visible_names(snapshot: dict[str, Any]) -> list[str]:
+    return [str(ref.get("name", "")) for ref in base._refs(snapshot)]
+
+
+def _paid_text(snapshot: dict[str, Any]) -> str | None:
+    visible_names = _visible_names(snapshot)
+    direct = next(
+        (
+            name
+            for name in visible_names
+            if name.strip().lower() == "paid"
+            or "payment captured once" in name.lower()
+        ),
+        None,
+    )
+    if direct is not None:
+        return direct
+    outline = str(snapshot.get("outline") or "")
+    if 'statictext "PAID"' in outline and "Payment captured once" in outline:
+        return "PAID — Payment captured once. This order is confirmed."
+    return None
 
 
 def _snapshot(
@@ -126,7 +150,9 @@ def main() -> None:
         )
         if code != 0:
             raise base.ProbeError(f"world bootstrap failed: {(stderr or stdout)[-600:]}")
-        code, text, _ = base._exec(sandbox, "cat", "/run/nightwatch/world-evidence.json", timeout=30)
+        code, text, _ = base._exec(
+            sandbox, "cat", "/run/nightwatch/world-evidence.json", timeout=30
+        )
         evidence["world"] = base._json_from(text)
         socket_path = str(evidence["world"].get("cua_socket") or "/run/nightwatch/cua.sock")
         driver = base.CuaDriver(sandbox, evidence, socket_path)
@@ -294,6 +320,12 @@ def main() -> None:
         completed: list[str] = []
         actions: list[dict[str, Any]] = []
         decision_records: list[dict[str, Any]] = []
+        terminal_postcondition: dict[str, Any] = {
+            "verified": False,
+            "url": None,
+            "paid_text": None,
+            "frame": None,
+        }
         if winner is not None:
             goal = (
                 "Complete one checkout of SKU-A quantity 1 and reach a paid state, "
@@ -371,8 +403,6 @@ def main() -> None:
                     selected_candidate["args"].setdefault("target_id", target_id)
                     selected_candidate["args"].setdefault("tab_id", tab_id)
                 judged = snapshot
-                frame_at_ns = time.monotonic_ns()
-                frame_path = f"/run/nightwatch/frames/final-{step:02d}-before.png"
                 driver.call(
                     str(selected_candidate["tool"]),
                     dict(selected_candidate["args"]),
@@ -382,6 +412,28 @@ def main() -> None:
                     sandbox, driver, target_id, tab_id, session, f"final-{step:02d}-after"
                 )
                 action_frame = after.pop("_frame", None)
+                if choice == "pay_now":
+                    for terminal_attempt in range(20):
+                        url_after = str(base._pick(after, "url") or "")
+                        paid_text = _paid_text(after)
+                        terminal_postcondition = {
+                            "verified": "status.html" in url_after and paid_text is not None,
+                            "url": url_after,
+                            "paid_text": paid_text,
+                            "frame": action_frame,
+                        }
+                        if terminal_postcondition["verified"]:
+                            break
+                        time.sleep(0.3)
+                        after = _snapshot(
+                            sandbox,
+                            driver,
+                            target_id,
+                            tab_id,
+                            session,
+                            f"final-{step:02d}-terminal-{terminal_attempt + 1:02d}",
+                        )
+                        action_frame = after.pop("_frame", None)
                 expected_role = expected_name = None
                 for ref_item in base._refs(judged):
                     if ref_item.get("ref") == selected_candidate.get("ref"):
@@ -422,6 +474,7 @@ def main() -> None:
                     break
         evidence["decisions"] = decision_records
         evidence["actions"] = actions
+        evidence["terminal_postcondition"] = terminal_postcondition
         evidence["verdict"]["jev_live_choice"] = bool(decision_records)
         evidence["verdict"]["action_executed"] = any(
             record.get("executed") for record in decision_records
@@ -468,6 +521,8 @@ def main() -> None:
     evidence["verdict"]["probe_passed"] = bool(
         evidence["verdict"].get("email_write_variant")
         and evidence["verdict"].get("element_postcondition_verified")
+        and evidence["verdict"].get("server_postcondition_verified")
+        and evidence.get("terminal_postcondition", {}).get("verified")
         and not evidence.get("errors")
     )
     artifacts_dir = _REPO_ROOT / "artifacts"

@@ -3,6 +3,8 @@
 Track B appends requests here instead of editing files it does not own (plan §17).
 Track A is the contract owner and implements or declines each request.
 
+**2026-09-19 payload seam:** Track B owns `services/worlds/payload.py::build_candidate_payload(spec: CandidateSpec) -> CandidatePayload`; Track A must not create a competing builder.
+
 ## 2026-09-19 — public control API and committed evaluation source frozen
 
 **By:** Track A (Jazil) · **Status:** accepted · **Wire impact:** additive

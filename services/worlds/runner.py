@@ -50,6 +50,7 @@ class CandidateRun:
     evaluation: CandidateEvaluation
     lifecycle: WorldLifecycle | None
     failures: list[str] = field(default_factory=list)
+    scenario_results: list[ScenarioResult] = field(default_factory=list)
 
 
 def run_candidate_world(
@@ -63,6 +64,7 @@ def run_candidate_world(
 ) -> CandidateRun:
     """Run one candidate world end-to-end; never raises for a single world."""
     failures: list[str] = []
+    results: list[ScenarioResult] = []
     evaluation: CandidateEvaluation | None = None
     lifecycle: WorldLifecycle | None = None
     try:
@@ -90,4 +92,9 @@ def run_candidate_world(
             started_at_utc=lifecycle.created_at_utc if lifecycle is not None else None,
             finished_at_utc=lifecycle.finished_at_utc if lifecycle is not None else None,
         )
-    return CandidateRun(evaluation=evaluation, lifecycle=lifecycle, failures=failures)
+    return CandidateRun(
+        evaluation=evaluation,
+        lifecycle=lifecycle,
+        failures=failures,
+        scenario_results=results,
+    )
