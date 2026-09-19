@@ -47,6 +47,7 @@ def error_evaluation(
     *,
     expected_scenario_ids: Sequence[ScenarioId],
     expected_invariant_ids: Sequence[InvariantId],
+    sandbox_id: str | None = None,
 ) -> CandidateEvaluation:
     """One candidate's ERROR shell when its world produced no usable result.
 
@@ -61,6 +62,7 @@ def error_evaluation(
         candidate_id=spec.candidate_id,
         scenario_ids=list(expected_scenario_ids),
         invariant_ids=list(expected_invariant_ids),
+        sandbox_id=sandbox_id,
         verdict="ERROR",
         started_at_utc=now,
         finished_at_utc=now,

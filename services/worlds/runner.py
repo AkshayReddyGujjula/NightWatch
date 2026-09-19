@@ -86,5 +86,6 @@ def run_candidate_world(
             spec,
             expected_scenario_ids=expected_scenario_ids,
             expected_invariant_ids=expected_invariant_ids,
+            sandbox_id=lifecycle.sandbox_id if lifecycle is not None else None,
         )
     return CandidateRun(evaluation=evaluation, lifecycle=lifecycle, failures=failures)

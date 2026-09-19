@@ -128,6 +128,7 @@ def test_unwired_scenarios_return_error_and_world_is_stopped() -> None:
     assert run.evaluation.verdict == "ERROR"
     assert run.failures == ["scenario execution not wired (services/oracle.py pending)"]
     assert run.evaluation.scenario_ids == _SCENARIOS
+    assert run.evaluation.sandbox_id == "sb-fake"
     assert world.started and world.stopped
     assert run.lifecycle is not None and run.lifecycle.terminated
 

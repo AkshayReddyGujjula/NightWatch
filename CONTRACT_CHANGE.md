@@ -148,3 +148,23 @@ Two things only the contract owner can freeze before committed data can render:
 Until both land, every matrix cell stays `no result` / `not run` and the live panels
 stay labelled-empty - no guesses. When the `IncidentSnapshot` / `SafeStopRequest`
 schemas land, integration re-runs `npm run gen:types` before any client method is added.
+
+## 2026-09-19 - Track B: ephemeral runs of the shared app need Track A's secret names in `nightwatch-b`
+
+**By:** Track B (Akshay) · **Status:** environment note · **Wire impact:** none
+
+`uv run modal run -e nightwatch-b modal_app.py` fails while loading the App:
+`NotFoundError: Secret 'nightwatch-provider' not found in environment 'nightwatch-b'`.
+The single shared app resolves every function's secret references, and
+`nightwatch-b` currently holds only `nightwatch-typesafe` + `nightwatch-evidence-ingest`.
+Track A's three names (`nightwatch-provider`, `nightwatch-live-internal`,
+`nightwatch-control`) exist in `nightwatch-a` and `nightwatch-demo`.
+
+An ephemeral `modal run -e nightwatch-demo` was tried and stopped: loading the
+shared app also warms Track A's ASGI containers, which then crash-loop against the
+deployed app's open SQLite files (`Volume.reload` conflicts; the deployed app was
+not damaged and the ephemeral app is stopped). Track B's map gate therefore runs a
+temp dev App in `nightwatch-b` that binds the same `run_candidate_impl` with only
+`nightwatch-evidence-ingest`. Decision needed from Jazil: mirror the three secret
+names into `nightwatch-b`, or record that ephemeral shared-app runs target
+`nightwatch-demo` (with the volume-warm caveat above).

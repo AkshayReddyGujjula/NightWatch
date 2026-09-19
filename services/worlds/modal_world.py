@@ -18,6 +18,7 @@ import base64
 import json
 import shlex
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import modal
@@ -65,6 +66,9 @@ class ModalWorld:
         self._candidate_id = ""
         self.created_monotonic_ns: int | None = None
         self.ready_monotonic_ns: int | None = None
+        self.created_at_utc: datetime | None = None
+        self.ready_at_utc: datetime | None = None
+        self.finished_at_utc: datetime | None = None
 
     # -- lifecycle -----------------------------------------------------------
 
@@ -73,6 +77,7 @@ class ModalWorld:
         self._validate_spec(spec)
         self._candidate_id = spec.candidate_id
         created_ns = time.monotonic_ns()
+        self.created_at_utc = datetime.now(UTC)
         sandbox = modal.Sandbox.create(
             app=self._app,
             image=DESKTOP_IMAGE,
@@ -112,6 +117,7 @@ class ModalWorld:
                 raise WorldError("world evidence file missing after bootstrap")
             self._world_evidence = json.loads(evidence_text)
             self.ready_monotonic_ns = time.monotonic_ns()
+            self.ready_at_utc = datetime.now(UTC)
             return self.lifecycle(terminated=False)
         except Exception as error:  # noqa: BLE001 - cleanup then re-raise
             self.stop()
@@ -121,6 +127,7 @@ class ModalWorld:
 
     def stop(self) -> WorldLifecycle:
         """Idempotent teardown; the sandbox is always terminated."""
+        self.finished_at_utc = datetime.now(UTC)
         sandbox = self._sandbox
         if sandbox is not None:
             try:
@@ -139,6 +146,9 @@ class ModalWorld:
             created_monotonic_ns=self.created_monotonic_ns,
             ready_monotonic_ns=self.ready_monotonic_ns,
             finished_monotonic_ns=time.monotonic_ns(),
+            created_at_utc=self.created_at_utc,
+            ready_at_utc=self.ready_at_utc,
+            finished_at_utc=self.finished_at_utc,
             terminated=terminated,
             cleanup_note=cleanup_note,
         )

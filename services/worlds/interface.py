@@ -13,6 +13,7 @@ evidence set, and this interface carries no success flag a world could forge.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from apps.contracts.evaluation import CandidateEvaluation
@@ -51,6 +52,11 @@ class WorldLifecycle:
     created_monotonic_ns: int | None = None
     ready_monotonic_ns: int | None = None
     finished_monotonic_ns: int | None = None
+    # Wall-clock instants: monotonic clocks are per-container, so only these are
+    # comparable across the three parallel worlds for overlap measurement.
+    created_at_utc: datetime | None = None
+    ready_at_utc: datetime | None = None
+    finished_at_utc: datetime | None = None
     terminated: bool = False
     startup_error: str | None = None
     cleanup_note: str | None = None
