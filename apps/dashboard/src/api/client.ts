@@ -7,7 +7,7 @@
  * cache (`Cache-Control: no-store` on live views).
  */
 
-import type { RepairReceipt } from "../generated";
+import type { EvaluationResults as CommittedEvaluations, IncidentSnapshot, RepairReceipt } from "../generated";
 import type { ControlApiConfig } from "./config";
 import { type EvaluationResults, unavailableResults } from "./matrix";
 import { routes } from "./routes";
@@ -34,17 +34,32 @@ export class ControlApi {
   /**
    * Committed S01–S08 and NC-01/NC-02 outcomes for the matrix.
    *
-   * The frozen control API (plan §9.1) does not yet serve a per-scenario or
-   * per-negative-control results payload — the receipt carries candidate-level
-   * verdicts only — and this project never invents a wire shape. Until the
-   * contract owner freezes the source, the result is explicitly unavailable
-   * and the matrix renders labelled empties. When it lands, only this method
-   * (plus `routes.ts`) changes; no component changes.
+   * Resolve the committed run id from the incident snapshot, then read the
+   * frozen run-scoped evaluation payload. Provisional runner output is never
+   * exposed to components.
    */
   async getEvaluationResults(incidentId: string): Promise<EvaluationResults> {
-    return unavailableResults(
-      `no committed evaluation results source is served for incident ${incidentId} yet`,
-    );
+    try {
+      const incident = await this.getJson<IncidentSnapshot>(routes.incident(incidentId));
+      const committed = await this.getJson<CommittedEvaluations>(
+        routes.runEvaluations(incident.run_id),
+      );
+      return {
+        available: true,
+        scenarios: committed.scenarios ?? [],
+        negativeControls: (committed.negative_controls ?? []).map((control) => ({
+          control_id: control.control_id,
+          status: control.status,
+          failed_invariants: control.failed_invariants ?? [],
+          evidence_ids: control.evidence_ids ?? [],
+        })),
+      };
+    } catch (error) {
+      if (error instanceof ControlApiError && error.status === 404) {
+        return unavailableResults(`no committed evaluation results for incident ${incidentId} yet`);
+      }
+      throw error;
+    }
   }
 
   private async getJson<T>(path: string): Promise<T> {

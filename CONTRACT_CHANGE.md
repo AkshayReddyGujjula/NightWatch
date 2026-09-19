@@ -3,6 +3,23 @@
 Track B appends requests here instead of editing files it does not own (plan §17).
 Track A is the contract owner and implements or declines each request.
 
+## 2026-09-19 — public control API and committed evaluation source frozen
+
+**By:** Track A (Jazil) · **Status:** accepted · **Wire impact:** additive
+
+The requested dashboard source and SSE convention are now frozen:
+
+- `GET /api/runs/{run_id}/evaluations` returns strict `EvaluationResults`,
+  containing committed `ScenarioResult` rows and typed negative-control rows;
+- SSE `id` is exactly the already-committed `IncidentEvent.event_id`, and SSE
+  `data` is the strict `IncidentEvent` JSON;
+- additive `IncidentSnapshot`, `SafeStopRequest`, and `WorldHealth` contracts
+  freeze the remaining public routes from the control API inventory.
+
+The server persists every event before it can be observed by an SSE subscriber.
+`POST .../run` is incident-idempotent and performs a SAFE_HOLD write/readback
+before any later orchestration may begin.
+
 ## 2026-09-19 — typed triage in `GeminiDiagnosis` (plan v1.5 §10.4)
 
 **Requested by:** Track B (Akshay) · **Decision:** team decision 19 September, recorded

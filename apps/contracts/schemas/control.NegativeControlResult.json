@@ -1,0 +1,53 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "control_id": {
+      "enum": [
+        "NC-01",
+        "NC-02"
+      ],
+      "title": "Control Id",
+      "type": "string"
+    },
+    "evidence_ids": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+    },
+    "failed_invariants": {
+      "items": {
+        "enum": [
+          "INV-01",
+          "INV-02",
+          "INV-03",
+          "INV-04",
+          "INV-05",
+          "INV-06"
+        ],
+        "type": "string"
+      },
+      "title": "Failed Invariants",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "ERROR"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "control_id",
+    "status"
+  ],
+  "title": "NegativeControlResult",
+  "type": "object"
+}

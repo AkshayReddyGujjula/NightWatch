@@ -1,0 +1,297 @@
+{
+  "$defs": {
+    "InvariantResult": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "expected_summary": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Expected Summary",
+          "type": "string"
+        },
+        "invariant_id": {
+          "enum": [
+            "INV-01",
+            "INV-02",
+            "INV-03",
+            "INV-04",
+            "INV-05",
+            "INV-06"
+          ],
+          "title": "Invariant Id",
+          "type": "string"
+        },
+        "observed_summary": {
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Observed Summary",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "invariant_id",
+        "status",
+        "expected_summary",
+        "observed_summary"
+      ],
+      "title": "InvariantResult",
+      "type": "object"
+    },
+    "NegativeControlResult": {
+      "additionalProperties": false,
+      "properties": {
+        "control_id": {
+          "enum": [
+            "NC-01",
+            "NC-02"
+          ],
+          "title": "Control Id",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "failed_invariants": {
+          "items": {
+            "enum": [
+              "INV-01",
+              "INV-02",
+              "INV-03",
+              "INV-04",
+              "INV-05",
+              "INV-06"
+            ],
+            "type": "string"
+          },
+          "title": "Failed Invariants",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "control_id",
+        "status"
+      ],
+      "title": "NegativeControlResult",
+      "type": "object"
+    },
+    "ScenarioResult": {
+      "additionalProperties": false,
+      "properties": {
+        "app_facts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "App Facts",
+          "type": "object"
+        },
+        "browser_trace_hash": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 64,
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Browser Trace Hash"
+        },
+        "candidate_id": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ],
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "capsule_sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Capsule Sha256",
+          "type": "string"
+        },
+        "code_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Code Hash",
+          "type": "string"
+        },
+        "failure_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Reason"
+        },
+        "finished_at_utc": {
+          "format": "date-time",
+          "title": "Finished At Utc",
+          "type": "string"
+        },
+        "invariants": {
+          "items": {
+            "$ref": "#/$defs/InvariantResult"
+          },
+          "title": "Invariants",
+          "type": "array"
+        },
+        "ledger_evidence_ids": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Ledger Evidence Ids",
+          "type": "array"
+        },
+        "oracle_code_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Oracle Code Hash",
+          "type": "string"
+        },
+        "scenario_id": {
+          "enum": [
+            "S01",
+            "S02",
+            "S03",
+            "S04",
+            "S05",
+            "S06",
+            "S07",
+            "S08"
+          ],
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "scenario_registry_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Scenario Registry Hash",
+          "type": "string"
+        },
+        "seed_hash": {
+          "maxLength": 64,
+          "minLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Seed Hash",
+          "type": "string"
+        },
+        "started_at_utc": {
+          "format": "date-time",
+          "title": "Started At Utc",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "scenario_id",
+        "status",
+        "started_at_utc",
+        "finished_at_utc",
+        "capsule_sha256",
+        "seed_hash",
+        "code_hash",
+        "scenario_registry_hash",
+        "oracle_code_hash"
+      ],
+      "title": "ScenarioResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Committed matrix source; no provisional world output is returned.",
+  "properties": {
+    "committed_at_utc": {
+      "format": "date-time",
+      "title": "Committed At Utc",
+      "type": "string"
+    },
+    "negative_controls": {
+      "items": {
+        "$ref": "#/$defs/NegativeControlResult"
+      },
+      "title": "Negative Controls",
+      "type": "array"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/ScenarioResult"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "committed_at_utc"
+  ],
+  "title": "EvaluationResults",
+  "type": "object"
+}

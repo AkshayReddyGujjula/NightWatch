@@ -14,3 +14,6 @@ class ControlSettings(BaseSettings):
     nightwatch_operator_token: str = ""
     control_event_token: str = ""
     frame_ingest_token: str = ""
+    live_store_base_url: str = ""
+    live_internal_token: str = ""
+    control_db_path: str = ""

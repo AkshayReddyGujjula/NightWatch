@@ -15,8 +15,12 @@ function incidentPath(incidentId: string): string {
 }
 
 export const routes = {
+  /** `GET /api/incidents/{id}` — committed incident/run snapshot. */
+  incident: (incidentId: string) => incidentPath(incidentId),
   /** `GET /api/incidents/{id}/receipt` — canonical signed/hashed receipt JSON. */
   incidentReceipt: (incidentId: string) => `${incidentPath(incidentId)}/receipt`,
   /** `GET /api/incidents/{id}/events` — SSE replay from the committed event table. */
   incidentEvents: (incidentId: string) => `${incidentPath(incidentId)}/events`,
+  /** `GET /api/runs/{run_id}/evaluations` — committed matrix source. */
+  runEvaluations: (runId: string) => `${API_ROOT}/runs/${encodeURIComponent(runId)}/evaluations`,
 } as const;

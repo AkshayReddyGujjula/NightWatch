@@ -1,0 +1,203 @@
+"""Authenticated public control API and committed SSE event stream."""
+
+from __future__ import annotations
+
+import asyncio
+import hmac
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import StreamingResponse
+
+from apps.contracts.control import (
+    EvaluationResults,
+    IncidentSnapshot,
+    SafeStopRequest,
+    WorldHealth,
+)
+from apps.contracts.lease import RepairReceipt
+from services.control_store import ControlStore
+
+router = APIRouter(prefix="/api")
+
+
+async def require_operator(
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> None:
+    expected = request.app.state.settings.nightwatch_operator_token
+    if not expected:
+        raise HTTPException(status_code=503, detail="operator token is not configured")
+    scheme, _, supplied = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not supplied:
+        raise HTTPException(status_code=401, detail="missing operator bearer token")
+    if not hmac.compare_digest(expected, supplied):
+        raise HTTPException(status_code=401, detail="invalid operator bearer token")
+
+
+def _store(request: Request) -> ControlStore:
+    return request.app.state.control_store
+
+
+def _not_found(label: str) -> HTTPException:
+    return HTTPException(status_code=404, detail=f"{label} not found")
+
+
+async def _contain(request: Request, incident_id: str) -> IncidentSnapshot:
+    store = _store(request)
+    try:
+        readback = await request.app.state.containment.ensure_safe_hold()
+    except Exception as exc:
+        reason = f"CONTAINMENT_FAILED: {type(exc).__name__}: {exc}"
+        store.append_event(
+            incident_id,
+            "ESCALATED",
+            {"reason": reason[:500]},
+            state="ESCALATED",
+            containment_verified=False,
+            degraded_reason=reason[:512],
+        )
+        return store.get_snapshot(incident_id)
+
+    store.append_event(
+        incident_id,
+        "SAFE_HOLD_SET",
+        {
+            "router_mode": readback.mode,
+            "router_generation": str(readback.generation),
+            "handler_sha256": readback.handler_hash,
+            "readback": "verified",
+        },
+        state="SAFE_HOLD",
+        containment_verified=True,
+    )
+    return store.get_snapshot(incident_id)
+
+
+@router.post(
+    "/incidents/{incident_id}/run",
+    response_model=IncidentSnapshot,
+    dependencies=[Depends(require_operator)],
+)
+async def run_incident(incident_id: str, request: Request) -> IncidentSnapshot:
+    """Create one run, then contain and read back before orchestration."""
+    snapshot, created = _store(request).begin_run(incident_id)
+    if not created:
+        return snapshot
+    return await _contain(request, incident_id)
+
+
+@router.post(
+    "/incidents/{incident_id}/safe-stop",
+    response_model=IncidentSnapshot,
+    dependencies=[Depends(require_operator)],
+)
+async def safe_stop(
+    incident_id: str, body: SafeStopRequest, request: Request
+) -> IncidentSnapshot:
+    store = _store(request)
+    try:
+        store.get_snapshot(incident_id)
+    except KeyError as exc:
+        raise _not_found("incident") from exc
+    store.append_event(
+        incident_id,
+        "SAFE_STOP_REQUESTED",
+        {"reason": body.reason},
+    )
+    return await _contain(request, incident_id)
+
+
+@router.get(
+    "/incidents/{incident_id}",
+    response_model=IncidentSnapshot,
+    dependencies=[Depends(require_operator)],
+)
+async def get_incident(incident_id: str, request: Request) -> IncidentSnapshot:
+    try:
+        return _store(request).get_snapshot(incident_id)
+    except KeyError as exc:
+        raise _not_found("incident") from exc
+
+
+@router.get(
+    "/incidents/{incident_id}/receipt",
+    response_model=RepairReceipt,
+    dependencies=[Depends(require_operator)],
+)
+async def get_receipt(incident_id: str, request: Request) -> RepairReceipt:
+    try:
+        return _store(request).get_receipt(incident_id)
+    except KeyError as exc:
+        raise _not_found("receipt") from exc
+
+
+@router.get(
+    "/runs/{run_id}/evaluations",
+    response_model=EvaluationResults,
+    dependencies=[Depends(require_operator)],
+)
+async def get_evaluations(run_id: str, request: Request) -> EvaluationResults:
+    try:
+        return _store(request).get_evaluations(run_id)
+    except KeyError as exc:
+        raise _not_found("evaluation results") from exc
+
+
+@router.get(
+    "/worlds/{world_id}/health",
+    response_model=WorldHealth,
+    dependencies=[Depends(require_operator)],
+)
+async def get_world_health(world_id: str, request: Request) -> WorldHealth:
+    try:
+        return _store(request).get_world_health(world_id)
+    except KeyError as exc:
+        raise _not_found("world") from exc
+
+
+@router.get(
+    "/incidents/{incident_id}/events",
+    dependencies=[Depends(require_operator)],
+)
+async def incident_events(
+    incident_id: str,
+    request: Request,
+    last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
+) -> StreamingResponse:
+    store = _store(request)
+    try:
+        # Validate both the incident and cursor before sending HTTP 200.
+        store.list_events_after(incident_id, last_event_id)
+    except KeyError as exc:
+        raise _not_found("incident") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    async def stream():  # type: ignore[no-untyped-def]
+        cursor = last_event_id
+        idle_ticks = 0
+        while not await request.is_disconnected():
+            events = store.list_events_after(incident_id, cursor)
+            if events:
+                idle_ticks = 0
+                for event in events:
+                    # The DB transaction committed before list_events_after can
+                    # return this row. SSE id and payload share the same model.
+                    yield f"id: {event.event_id}\ndata: {event.model_dump_json()}\n\n"
+                    cursor = event.event_id
+            else:
+                idle_ticks += 1
+                if idle_ticks >= 60:  # 15 s keepalive at the 250 ms poll rate.
+                    idle_ticks = 0
+                    yield ": keepalive\n\n"
+            await asyncio.sleep(0.25)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+        },
+    )

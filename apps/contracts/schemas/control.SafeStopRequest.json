@@ -1,0 +1,14 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "reason": {
+      "default": "operator_requested",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "title": "SafeStopRequest",
+  "type": "object"
+}

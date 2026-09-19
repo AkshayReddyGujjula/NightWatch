@@ -18,10 +18,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from apps.contracts import browser, evaluation, incident, lease, payment  # noqa: E402
+from apps.contracts import browser, control, evaluation, incident, lease, payment  # noqa: E402
 from apps.contracts.base import StrictModel  # noqa: E402
 
 MODEL_GROUPS: dict[str, list[type[StrictModel]]] = {
+    "control": [
+        control.SafeStopRequest,
+        control.IncidentSnapshot,
+        control.NegativeControlResult,
+        control.EvaluationResults,
+        control.WorldHealth,
+    ],
     "browser": [
         browser.BrowserFrame,
         browser.FrameIngestAck,

@@ -1,0 +1,79 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "containment_verified": {
+      "title": "Containment Verified",
+      "type": "boolean"
+    },
+    "created_at_utc": {
+      "format": "date-time",
+      "title": "Created At Utc",
+      "type": "string"
+    },
+    "degraded_reasons": {
+      "items": {
+        "maxLength": 512,
+        "minLength": 1,
+        "pattern": "\\S",
+        "type": "string"
+      },
+      "title": "Degraded Reasons",
+      "type": "array"
+    },
+    "event_count": {
+      "minimum": 0,
+      "title": "Event Count",
+      "type": "integer"
+    },
+    "incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "receipt_available": {
+      "title": "Receipt Available",
+      "type": "boolean"
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "RUN_REQUESTED",
+        "SAFE_HOLD",
+        "RUNNING",
+        "COMPLETED",
+        "ESCALATED"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "state_version": {
+      "minimum": 0,
+      "title": "State Version",
+      "type": "integer"
+    },
+    "updated_at_utc": {
+      "format": "date-time",
+      "title": "Updated At Utc",
+      "type": "string"
+    }
+  },
+  "required": [
+    "incident_id",
+    "run_id",
+    "state",
+    "state_version",
+    "containment_verified",
+    "event_count",
+    "receipt_available",
+    "created_at_utc",
+    "updated_at_utc"
+  ],
+  "title": "IncidentSnapshot",
+  "type": "object"
+}

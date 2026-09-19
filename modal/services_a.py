@@ -46,6 +46,7 @@ app = modal.App("nightwatch")
 
 PROVIDER_VOLUME = modal.Volume.from_name("nightwatch-provider-data", create_if_missing=True)
 STORE_VOLUME = modal.Volume.from_name("nightwatch-live-store-data", create_if_missing=True)
+CONTROL_VOLUME = modal.Volume.from_name("nightwatch-control-data", create_if_missing=True)
 
 VOLUME_MOUNT = "/data"
 #: ``Volume.reload`` fails while another container holds a file open; retry with
@@ -73,9 +74,12 @@ TRUSTED_IMAGE = (
             # is immutable and must never be reset or rewritten.
             "PROVIDER_DB_PATH": "/tmp/nightwatch_provider.db",
             "STORE_DB_PATH": "/tmp/nightwatch_live_store.db",
+            "CONTROL_DB_PATH": "/tmp/nightwatch_control.db",
+            "STOREFRONT_DIR": "/root/apps/storefront",
         }
     )
     .add_local_python_source("apps", "services")
+    .add_local_dir("apps/storefront", remote_path="/root/apps/storefront")
     .add_local_dir("fixtures", remote_path="/root/fixtures")
 )
 
@@ -313,8 +317,10 @@ def live_store_asgi() -> FastAPI:
     image=TRUSTED_IMAGE,
     secrets=[
         modal.Secret.from_name("nightwatch-control"),
+        modal.Secret.from_name("nightwatch-live-internal"),
         modal.Secret.from_name("nightwatch-evidence-ingest"),
     ],
+    volumes={VOLUME_MOUNT: CONTROL_VOLUME},
     min_containers=1,
     max_containers=1,
     timeout=3600,
@@ -323,4 +329,19 @@ def live_store_asgi() -> FastAPI:
 def control_asgi() -> FastAPI:
     from apps.control_plane.app import ControlSettings, create_app
 
-    return create_app(ControlSettings())
+    snapshot = SqliteVolumeSnapshot(
+        CONTROL_VOLUME,
+        local_path="/tmp/nightwatch_control.db",
+        snapshot_name="nightwatch_control.snapshot.db",
+    )
+    snapshot.restore()
+    application = create_app(
+        ControlSettings(control_db_path=str(snapshot.local_path)),
+        lifespan=_shutdown_lifespan(snapshot),
+    )
+    snapshot.attach(
+        application.state.control_store.connection,
+        application.state.control_store.lock,
+    )
+    _install_snapshot_middleware(application, snapshot)
+    return application

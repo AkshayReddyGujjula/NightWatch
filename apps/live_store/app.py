@@ -8,9 +8,11 @@ only outbound credential is its scoped provider token; internal endpoints use
 from __future__ import annotations
 
 import hmac
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from apps.contracts.payment import (
@@ -43,6 +45,7 @@ class StoreSettings(BaseSettings):
     provider_base_url: str = ""
     provider_token: str = ""
     store_db_path: str = ""
+    storefront_dir: str = ""
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -246,6 +249,11 @@ def create_app(
         }
 
     app.include_router(router)
+    storefront = Path(resolved.storefront_dir) if resolved.storefront_dir else (
+        Path(__file__).resolve().parents[1] / "storefront"
+    )
+    # Mount last so the typed API and /health routes always win over static files.
+    app.mount("/", StaticFiles(directory=storefront, html=True), name="storefront")
     return app
 
 

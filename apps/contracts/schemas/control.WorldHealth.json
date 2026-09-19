@@ -1,0 +1,78 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "candidate_id": {
+      "anyOf": [
+        {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Candidate Id"
+    },
+    "checked_at_utc": {
+      "format": "date-time",
+      "title": "Checked At Utc",
+      "type": "string"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    },
+    "sandbox_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sandbox Id"
+    },
+    "status": {
+      "enum": [
+        "STARTING",
+        "READY",
+        "RUNNING",
+        "COMPLETED",
+        "ERROR",
+        "TERMINATED"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "world_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "World Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "world_id",
+    "status",
+    "checked_at_utc"
+  ],
+  "title": "WorldHealth",
+  "type": "object"
+}
