@@ -172,11 +172,14 @@ if [ ! -S "$CUA_SOCK" ]; then
 fi
 chmod 0600 "$CUA_SOCK"
 
-# Best-effort probe: an allowed read-only tool must answer without prompts.
-CUA_PROBE="$(as_ctl timeout 15 cua-driver call list_windows '{}' --socket "$CUA_SOCK" 2>&1 || true)"
+# Best-effort probe: a start/end session pair proves the daemon answers over
+# its socket with manifest-allowed calls. Desktop-wide enumeration
+# (list_windows with no pid) is correctly outside this browser-only manifest.
+CUA_PROBE="$(as_ctl timeout 15 cua-driver call start_session '{"session":"bootstrap-probe"}' --socket "$CUA_SOCK" 2>&1 || true)"
+as_ctl timeout 15 cua-driver call end_session '{"session":"bootstrap-probe"}' --socket "$CUA_SOCK" >/dev/null 2>&1 || true
 CUA_PROBE_STATUS="ok"
 case "$CUA_PROBE" in
-  *'"error"'*|*refus*|*denied*|*Error*) CUA_PROBE_STATUS="error" ;;
+  *refus*|*denied*|*'not running'*|*Error*) CUA_PROBE_STATUS="error" ;;
 esac
 
 # -------------------------------------------------------------- candidate app

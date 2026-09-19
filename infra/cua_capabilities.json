@@ -16,6 +16,14 @@
     ]
   },
   "resources": {
+    "apps": [
+      {
+        "executable": "/opt/google/chrome/chrome",
+        "launch": true,
+        "windows": "all",
+        "terminate": "driver_launched"
+      }
+    ],
     "browser": {
       "profiles": [
         {

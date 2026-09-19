@@ -84,9 +84,12 @@ DESKTOP_IMAGE = (
         f"echo '{CUA_DRIVER_SHA256}  /tmp/cua-driver.tgz' | sha256sum -c -",
         f"mkdir -p /opt/cua-driver/{CUA_DRIVER_VERSION}",
         f"tar -xzf /tmp/cua-driver.tgz -C /opt/cua-driver/{CUA_DRIVER_VERSION}",
-        "CUA_BIN=\"$(find /opt/cua-driver -maxdepth 3 -type f -name cua-driver | head -n1)\"",
-        '[ -n "$CUA_BIN" ] || { echo "cua-driver binary not found in release archive"; exit 1; }',
-        'ln -s "$CUA_BIN" /usr/local/bin/cua-driver',
+        # One shell step: variables do not survive between run_commands entries.
+        "CUA_BIN=\"$(find /opt/cua-driver -maxdepth 3 -type f -name cua-driver | head -n1)\"; "
+        "if [ -z \"$CUA_BIN\" ]; then echo 'cua-driver not found; listing:'; "
+        "find /opt/cua-driver -maxdepth 3; exit 1; fi; "
+        "ln -s \"$CUA_BIN\" /usr/local/bin/cua-driver; "
+        "cua-driver --version",
         "rm -f /tmp/cua-driver.tgz",
         # --- two non-root identities, root-owned homes -----------------------
         f"groupadd --gid {APP_UID} {APP_USER}",
@@ -98,6 +101,7 @@ DESKTOP_IMAGE = (
         "mkdir -p /opt/nightwatch",
         "{ echo \"browser=$(google-chrome --version)\"; "
         "echo \"cua_driver=$(cua-driver --version)\"; "
+        "echo \"python3=$(python3 --version) at $(command -v python3)\"; "
         "echo \"base_image=debian_slim python3.12\"; } > /opt/nightwatch/versions.txt",
     )
     # Candidate runtime deps, pinned to the scaffold uv.lock (Track A owns
@@ -133,6 +137,8 @@ def desktop_image_report() -> dict[str, object]:
     return {
         "versions": _run("cat", "/opt/nightwatch/versions.txt"),
         "docker_image": DESKTOP_IMAGE.object_id or "unresolved",
+        "python3": _run("python3", "--version"),
+        "python3_path": _run("which", "python3"),
         "app_uid": _run("id", "-u", APP_USER),
         "controller_uid": _run("id", "-u", CTL_USER),
         "app_home_mode": _run("stat", "-c", "%a", f"/home/{APP_USER}"),
