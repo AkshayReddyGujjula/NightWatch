@@ -1,6 +1,6 @@
 # NightWatch: final six-hour build and architecture plan
 
-**Version:** 1.5, 19 September 2026 — adds the live-verified preflight facts (§11.3, §32.2), the decision that Gemini owns triage and Jev does not (§10.4), main-based branch sync (§31.4), and the Track A kickoff notes in §32  
+**Version:** 1.6, 19 September 2026 — folds in the browser-stack outcome and verified CUA facts (§11.6, §11.8), the `order_outputs=True` correction (§12.1), and decision 13 in §31.4  
 **Status:** implementation-ready; Section 2 is the frozen default unless Akshay and Jazil explicitly change it before the T+0:20 contract freeze  
 **Team:** two builders — **Jazil owns Track A** (domain, trusted authority, Gemini, proof) and **Akshay owns Track B** (Modal, Jev/CUA, dashboard). One laptop/branch owns each whole track; no path is edited by both.  
 **Build window:** T+0 to T+6h from whenever coding actually starts; T+6h to T+7h is submission, recording, secret-scrub and rehearsal time. Fixed anchors, whatever T+0 turns out to be: **19:00 submission** and **20:00 live demo**.  
@@ -621,12 +621,12 @@ CUA performs observation and execution; it does not choose policy or decide a ca
 Each A/B/C Modal Sandbox uses the same pinned desktop image containing:
 
 - a minimal X11 desktop (`Xvfb` plus Openbox or Xfce), D-Bus and AT-SPI accessibility services;
-- a pinned Chromium installed as a **root-owned OS package** so `browser_prepare` accepts it without a pid, then launched and owned by the controller identity, with a world-local mode-0700 temporary profile, `--force-renderer-accessibility` and a private CDP pipe rather than an exposed TCP debugging port;
+- a pinned **Google Chrome stable** installed as a **root-owned `.deb`** (CUA validates Chrome on Linux X11; Debian Chromium is descriptor-backed but not product-validated — the receipt records the exact installed version), launched and owned by the controller identity, with a world-local mode-0700 profile, `--force-renderer-accessibility` and a **loopback-only, PID-owned DevTools endpoint**. CUA Driver 0.28.2 documents no pipe transport; CDP is unauthenticated and same-OS-user processes sit outside the driver boundary, so enforcement is the app/controller OS-user split, file modes and the controller-owned socket. **The receipt must not claim "pipe".** Wherever an older section of this plan says "Chromium", read it as this pinned **Google Chrome stable** build — the product was changed after measurement, not the architecture.
 - the event-tested CUA Driver binary;
 - the candidate FastAPI app and world-local SQLite database;
 - no TypeSafe, Gemini, control-plane, evaluator or Modal account secret; the app process receives only its expiring world/scenario provider token.
 
-Sandbox bootstrap creates two non-root identities: `nightwatch_app` owns only the candidate bundle/DB/provider-token environment, while `nightwatch_controller` owns the display, Chromium profile/private CDP transport and CUA socket. The app user must be unable to read the controller socket/profile, signal the Driver/Chromium processes or access their file descriptors; the controller has no provider token. Start X11, accessibility bus and window manager under the controller, the candidate app under the app identity, then disable CUA telemetry and start `cua-driver serve` on a mode-0600 controller-owned Unix socket. Because Modal `Sandbox.exec` has no per-user parameter, the bootstrap script performs an explicit privilege drop (`setpriv` or `su`) for each process and records the effective UID of the app, the controller and the Driver in the evidence bundle. CUA runs in `bounded` mode with a generated capability manifest that allows only the CUA-owned Chromium/profile, the exact loopback candidate origin, and exactly these typed CUA tools: session start/end, `browser_prepare`, `browser_navigate`, `browser_click`, `browser_type` and `get_browser_state` (with `include_screenshot`). `semantic_v2` is a `snapshot_format` value of `get_browser_state`, not a tool name, and screenshots come from `include_screenshot`, not a separate tool. The manifest must use these exact names: an origin-scoped manifest **fails closed at startup** if it lists generic input tools such as `click`, `type_text`, `page` or `get_window_state`. No shell, clipboard, file, native-app, desktop-wide or arbitrary-origin action is exposed to Jev.
+Sandbox bootstrap creates two non-root identities: `nightwatch_app` owns only the candidate bundle/DB/provider-token environment, while `nightwatch_controller` owns the display, the Chrome profile and its loopback DevTools endpoint, and the CUA socket. The app user must be unable to read the controller socket/profile, signal the Driver/Chromium processes or access their file descriptors; the controller has no provider token. Start X11, accessibility bus and window manager under the controller, the candidate app under the app identity, then disable CUA telemetry and start `cua-driver serve` on a mode-0600 controller-owned Unix socket. Because Modal `Sandbox.exec` has no per-user parameter, the bootstrap script performs an explicit privilege drop (`setpriv` or `su`) for each process and records the effective UID of the app, the controller and the Driver in the evidence bundle. CUA runs in `bounded` mode with a generated capability manifest that allows only the CUA-owned Chromium/profile, the exact loopback candidate origin, and exactly this **verified working tool set**: session `start_session`/`end_session`, `launch_app`, `list_windows`, `browser_prepare`, `browser_navigate`, `browser_click` (`input_route: dom_event`), `browser_type` and `get_browser_state` (`semantic_v2`, `include_screenshot`), with `resources.apps` scoping `/opt/google/chrome/chrome` (`windows: all`, `terminate: driver_launched`) and `desktop.display: false`. `list_windows` and the app scope were measured as **required** for window binding and enumeration. `semantic_v2` is a `snapshot_format` value of `get_browser_state`, not a tool name, and screenshots come from `include_screenshot`. The manifest stays **origin-scoped** and **fails closed at startup** if it lists generic input tools such as `click`, `type_text`, `page` or `get_window_state`. No shell, clipboard, file, native-app, desktop-wide or arbitrary-origin action is exposed to Jev.
 
 The corresponding trusted `run_candidate` Modal Function owns `TYPESAFE_API_KEY`. It invokes CUA as the controller identity with argument-array `Sandbox.exec` calls to `cua-driver call ... --socket /tmp/nightwatch-cua.sock`; the secret is never passed into `Sandbox.create`, an environment variable, a file or command argument inside the sandbox. The runner parses the strict CUA response, constructs the allowlisted Jev Choice request, validates the selected ID, then asks CUA to execute the prebound action. Candidate code can still influence rendered web content, so UI/CUA evidence is corroborative; only the external provider ledger and trusted app-state read determine the invariant result.
 
@@ -661,7 +661,7 @@ Keep an optional noVNC service only as a post-core debugging aid. It is not the 
 Before building the full dashboard, prove one complete desktop world:
 
 1. build the pinned Modal desktop image and record its digest;
-2. start one Sandbox with separate app/controller users; prove the app user is denied the controller socket, profile, private CDP transport and process controls;
+2. start one Sandbox with separate app/controller users; prove the app user is denied the controller socket, the Chrome profile, its loopback DevTools endpoint and process controls;
 3. prove X11, D-Bus/AT-SPI and CUA Driver readiness with telemetry disabled, then run `browser_prepare -> get_browser_state -> semantic_v2(include_screenshot=true)` against the exact candidate tab;
 4. keep the same explicit named session across separate calls; prove a ref minted by call N works in call N+1 and is rejected under a different session;
 5. make one live Jev Choice call from the trusted runner and execute the chosen action through the sandbox CUA daemon;
@@ -669,6 +669,8 @@ Before building the full dashboard, prove one complete desktop world:
 7. record CUA Driver/Chromium versions, display/CDP mode, configured session TTL, Modal Sandbox ID and total cold-start time.
 
 This is a hard full-demo dependency because Linux/X11 support does not prove this exact Modal/gVisor image works. Build the pinned desktop image first — it is the long pole — and keep the core/API-only demo as the **default** deliverable until this gate is green. If it is not green by **T+0:50**, full mode is `AT_RISK` and Track B gets one final focused window while Track A continues the core system; if it is still not green at T+1:30, declare reduced mode and stop allocating critical-path time to the three-browser wall. Do not introduce another browser controller. S01/S02 remain `ERROR_BROWSER_STACK`, and the submission cannot claim browser-agent or concurrent-browser completion. CUA Fleets, CUA Sandbox and Lume remain out of scope because Modal is the required isolation/concurrency platform.
+
+**Incident-day outcome (19 September): the gate is NOT GREEN on driver 0.28.2.** Typed `browser_navigate` **and** `semantic_v2` observation are refused from a fresh `about:blank` page under an origin-scoped bounded manifest — the refusal reads the *current*, opaque origin, and declaring `"null"`/`"about:blank"` is rejected by the manifest loader at daemon startup; the existing-profile attach route also fails its endpoint proof against a live, PID-owned loopback endpoint. Browser scenarios are declared `ERROR_BROWSER_STACK` and the demo runs in **reduced mode**. One mechanism remains **untested rather than disproven** — seeding a driver-owned `isolated_named` profile with Chrome startup URLs — and a CDP first-navigation probe was **never attempted**; neither is claimed as working. Full evidence: `infra/BROWSER_STACK_NOTES.md`.
 
 ---
 
@@ -695,7 +697,7 @@ async def race(specs: list[CandidateSpec]) -> list[CandidateEvaluation]:
     inputs = [s.model_dump_json() for s in specs]
     async for item in run_candidate.map.aio(
         inputs,
-        order_outputs=False,
+        order_outputs=True,  # deliberate: preserves input-index -> candidate identity
         return_exceptions=True,
     ):
         if isinstance(item, BaseException):
@@ -705,7 +707,9 @@ async def race(specs: list[CandidateSpec]) -> list[CandidateEvaluation]:
     return results
 ```
 
-`.map()` parallelises function inputs but does not itself prove three sandboxes. Each `run_candidate` invocation must create exactly one `modal.Sandbox`, record its ID/lifecycle and terminate it in `finally`.
+**`order_outputs=True` is deliberate** (recorded decision, 19 September; supersedes the earlier sketch). With `order_outputs=False` the async iterator yields in completion order while exceptions arrive with **no candidate identity** — a bare exception cannot be matched to a world, and guessing can mark the wrong candidate `ERROR`, which changes deterministic selection. Ordered output preserves the one-to-one input-index → candidate mapping, so a crashed container is attributed to the world that actually failed. The cost is streaming granularity on the dashboard, which is acceptable because the race is collected before selection.
+
+`.map()` parallelises function inputs but does not itself prove three sandboxes. Each `run_candidate` invocation must create exactly one `modal.Sandbox`, record its ID/lifecycle and terminate it in `finally`. When extra worlds are added — the four-pane target is A, B, C plus a live negative-control world — raise `max_containers` to match; never reuse one world for two candidates.
 
 ### 12.2 World lifecycle
 
@@ -715,9 +719,9 @@ For A/B/C independently:
 2. validate image/code/seed/capsule/oracle/scenario hashes;
 3. create one sandbox from the pinned NightWatch desktop image with explicit timeout and idle timeout;
 4. transfer the candidate bundle and patch as files/data, not interpolated commands;
-5. bootstrap Xvfb, D-Bus/AT-SPI, window manager and bounded CUA daemon as `nightwatch_controller`, plus candidate FastAPI as `nightwatch_app`, using the explicit privilege drop described in §11.6; deny the app user access to the controller socket/profile/processes/private CDP transport or fail full mode;
+5. bootstrap Xvfb, D-Bus/AT-SPI, window manager and bounded CUA daemon as `nightwatch_controller`, plus candidate FastAPI as `nightwatch_app`, using the explicit privilege drop described in §11.6; deny the app user access to the controller socket, the Chrome profile, process controls and the loopback DevTools endpoint, or fail full mode;
 6. create an authenticated Connect Token for port 8080 with non-secret metadata so the trusted API runner can reach the candidate; Chromium inside the world uses loopback;
-7. create the explicit named CUA session; run `browser_prepare`, `get_browser_state` and `semantic_v2(include_screenshot=true)` through the private CDP binding; on readiness/session/ownership failure terminate and return `ERROR_STARTUP`;
+7. create the explicit named CUA session; run `browser_prepare`, `get_browser_state` and `semantic_v2(include_screenshot=true)` through the loopback DevTools binding; on readiness/session/ownership failure terminate and return `ERROR_STARTUP`;
 8. run this world's scenarios with **bounded concurrency and per-scenario isolation**: every scenario gets its own app-DB generation file copied from the frozen seed, its own provider namespace and its own short-lived token, and asserts seed/code/fault hashes before executing. UI scenarios stay serial within a world (one Chromium and one CUA session per world is a hard constraint); API scenarios may run in bounded parallel batches because they share no mutable state. Isolation is what replaces serialisation and keeps the run inside the §14.4 budget without letting incompatible stock or money states share a database. The 1–2 FPS CUA frame sampler runs only during browser scenarios;
 9. register `BROWSER_READY` with the trusted control barrier; after all eligible worlds are ready, release one barrier generation so A/B/C begin S02 within a two-second window;
 10. for every browser step, pass the same explicit session to CUA, obtain state/frame, call Jev from the trusted runner, validate the selected ID/session/snapshot freshness, execute through the sandbox CUA socket, publish before/after frames, then independently query app/provider state;
@@ -1603,6 +1607,7 @@ Recorded so they are never re-litigated mid-build:
 | 10 | Presentation | **Out of scope** | The video and the live demo are handled by the team separately; nothing in the build is shaped around recording (§22). |
 | 11 | Triage | **Gemini classifies; Jev does not** | Gemini emits an advisory typed triage block (category, severity, rationale, confidence) that never gates anything (§10.4). Recorded because live testing proved Jev cannot emit free text at all (§11.3). |
 | 12 | Branch policy | **Main-based sync, not track branches** | Both builders push to `main`, running `git pull --rebase` immediately before every push and keeping commits inside their own §17 paths. This relaxes §19's track-branch scheme for speed and is recorded as a deliberate deviation. |
+| 13 | Browser stack | **REDUCED MODE — driver-blocked, not disproven** | CUA Driver 0.28.2 refuses navigation and observation from a fresh `about:blank` origin under an origin-scoped manifest, and the existing-profile attach fails its endpoint proof. Browser scenarios are `ERROR_BROWSER_STACK`; nothing in the demo, dashboard or receipt may reference a browser journey (§11.8). |
 
 ---
 
