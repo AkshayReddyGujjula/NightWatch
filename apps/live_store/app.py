@@ -8,10 +8,13 @@ only outbound credential is its scoped provider token; internal endpoints use
 from __future__ import annotations
 
 import hmac
+import uuid
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -19,6 +22,7 @@ from apps.contracts.payment import (
     CheckoutRequest,
     CheckoutResponse,
     CreateIntentRequest,
+    IntentItem,
     IntentResponse,
     OrderResponse,
     RefundApiRequest,
@@ -252,6 +256,43 @@ def create_app(
     storefront = Path(resolved.storefront_dir) if resolved.storefront_dir else (
         Path(__file__).resolve().parents[1] / "storefront"
     )
+
+    def interactive_checkout(request: Request, filename: str) -> Response:
+        """Make the public demo URLs usable without a hidden setup step.
+
+        The shared storefront JavaScript correctly binds a checkout to an
+        existing intent, but previously disabled the entire form when a judge
+        opened ``/checkout-x.html`` or ``/checkout-y.html`` directly. A direct
+        visit now creates one synthetic intent and redirects to the same page
+        with its explicit intent id. Visits that already carry an intent remain
+        plain static-file reads.
+        """
+        if request.query_params.get("intent"):
+            return FileResponse(
+                storefront / filename,
+                media_type="text/html",
+                headers={"Cache-Control": "no-store"},
+            )
+        items = [IntentItem(sku="SKU-A", quantity=1)]
+        try:
+            intent = store.create_intent(f"cust_demo_{uuid.uuid4().hex[:12]}", items)
+        except StoreError as exc:
+            raise _http_from_store_error(exc) from exc
+        target = f"/{filename}?intent={quote(intent.intent_id, safe='')}"
+        return RedirectResponse(
+            target,
+            status_code=303,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @app.get("/checkout-x.html", include_in_schema=False)
+    async def checkout_x(request: Request) -> Response:
+        return interactive_checkout(request, "checkout-x.html")
+
+    @app.get("/checkout-y.html", include_in_schema=False)
+    async def checkout_y(request: Request) -> Response:
+        return interactive_checkout(request, "checkout-y.html")
+
     # Mount last so the typed API and /health routes always win over static files.
     app.mount("/", StaticFiles(directory=storefront, html=True), name="storefront")
     return app

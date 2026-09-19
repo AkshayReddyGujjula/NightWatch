@@ -26,6 +26,31 @@ def test_storefront_pages_and_assets_are_served_without_shadowing_api() -> None:
     assert client.get("/api/intents/not-present").status_code == 404
 
 
+def test_direct_checkout_urls_create_intent_and_redirect_to_interactive_page() -> None:
+    app = create_app(StoreSettings())
+    client = TestClient(app)
+
+    for path, button_text in (
+        ("/checkout-x.html", "Pay now"),
+        ("/checkout-y.html", "Confirm order"),
+    ):
+        redirect = client.get(path, follow_redirects=False)
+        assert redirect.status_code == 303
+        location = redirect.headers["location"]
+        assert location.startswith(f"{path}?intent=pi_")
+        assert redirect.headers["cache-control"] == "no-store"
+
+        page = client.get(location)
+        assert page.status_code == 200
+        assert button_text in page.text
+        assert page.headers["cache-control"] == "no-store"
+
+        intent_id = location.partition("?intent=")[2]
+        intent = client.get(f"/api/intents/{intent_id}")
+        assert intent.status_code == 200
+        assert intent.json()["items"] == [{"sku": "SKU-A", "quantity": 1}]
+
+
 def test_storefront_root_renders_catalogue() -> None:
     response = TestClient(create_app(StoreSettings())).get("/")
     assert response.status_code == 200
