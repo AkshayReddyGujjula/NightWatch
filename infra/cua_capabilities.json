@@ -27,6 +27,9 @@
     "browser": {
       "profiles": [
         {
+          "kind": "existing_profile"
+        },
+        {
           "kind": "isolated"
         }
       ],

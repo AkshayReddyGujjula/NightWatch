@@ -183,9 +183,8 @@ case "$CUA_PROBE" in
 esac
 
 # -------------------------------------------------------------- candidate app
-if [ -d "$APP_DIR" ]; then
-  chown -R "$APP_USER:$APP_GID" "$APP_DIR"
-fi
+mkdir -p "$APP_DIR"
+chown -R "$APP_USER:$APP_GID" "$APP_DIR"
 
 APP_ENV=(env -i PATH=/usr/local/bin:/usr/bin:/bin TZ=UTC
   HOME="/home/$APP_USER" USER="$APP_USER" LOGNAME="$APP_USER")
@@ -209,6 +208,118 @@ if [ "$APP_READY" != "1" ]; then
   tail -n 60 "/home/$APP_USER/app.log" >&2 || true
   die "candidate app did not answer on 127.0.0.1:${APP_PORT}${APP_READY_PATH}"
 fi
+
+# ------------------------------------------------- controller-owned browser
+# The world's Chromium is launched by a generated helper, owned by the
+# controller identity, with a world-local mode-0700 profile and forced
+# accessibility. The helper is the single source of truth for the launch
+# because Chrome must be restarted once after CUA enables the profile's
+# remote-debugging setting (browser_requires_setup -> restart -> attach):
+# launch-time debugging flags are deliberately ignored by the driver, so the
+# endpoint appears only after the product's own auto-connect setting is on.
+#
+# Probe evidence, driver 0.28.2: (1) with an origin-scoped bounded manifest the
+# typed surface refuses the first browser_navigate from a fresh about:blank
+# tab for every manifest origin spelling -> the browser must start at an
+# allowed origin; (2) launching through the /usr/bin wrapper makes the app
+# identity miss the manifest entry -> launch the binary directly; (3) the
+# remote-debugging setting is toggled once by CUA's bounded setup route and
+# survives a restart in this world-local profile.
+cat >"$RUN_DIR/launch_browser.sh" <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+RUN_DIR=/run/nightwatch
+CTL_USER=nightwatch_controller
+CTL_UID="$(id -u "$CTL_USER")"
+CTL_GID="$(id -g "$CTL_USER")"
+PROFILE="${RUN_DIR}/chrome-profile"
+BROWSER_START_URL="${NW_BROWSER_START_URL:-http://127.0.0.1:8080/}"
+ENV_FILE="${RUN_DIR}/controller.env"
+
+DISPLAY=""; XAUTHORITY=""; DBUS_SESSION_BUS_ADDRESS=""; XDG_RUNTIME_DIR=""
+while IFS='=' read -r key value; do
+  case "$key" in
+    DISPLAY) DISPLAY="$value" ;;
+    XAUTHORITY) XAUTHORITY="$value" ;;
+    DBUS_SESSION_BUS_ADDRESS) DBUS_SESSION_BUS_ADDRESS="$value" ;;
+    XDG_RUNTIME_DIR) XDG_RUNTIME_DIR="$value" ;;
+  esac
+done <"$ENV_FILE"
+
+as_ctl() {
+  setpriv --reuid="$CTL_UID" --regid="$CTL_GID" --init-groups \
+    env -i PATH=/usr/local/bin:/usr/bin:/bin HOME="/home/$CTL_USER" USER="$CTL_USER" \
+    LOGNAME="$CTL_USER" DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" \
+    DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
+    XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" "$@"
+}
+
+for wid in $(as_ctl xprop -root _NET_CLIENT_LIST 2>/dev/null | sed -n 's/.*window id #//p' | tr ',' ' '); do
+  owner="$(as_ctl xprop -id "$wid" _NET_WM_PID 2>/dev/null | sed -n 's/.*= //p' | tr -d ' ')"
+  if [ -n "$owner" ] && [ -e "/proc/$owner/exe" ] && \
+     [ "$(readlink -f "/proc/$owner/exe")" = "/opt/google/chrome/chrome" ]; then
+    kill -TERM "$owner" 2>/dev/null || true
+  fi
+done
+sleep 0.5
+pkill -u "$CTL_UID" -f '/opt/google/chrome/chrome' 2>/dev/null || true
+sleep 0.5
+
+install -d -o "$CTL_USER" -g "$CTL_USER" -m 0700 "$PROFILE"
+as_ctl nohup /opt/google/chrome/chrome \
+  --user-data-dir="$PROFILE" \
+  --force-renderer-accessibility \
+  --no-first-run --no-default-browser-check \
+  --no-sandbox --disable-dev-shm-usage \
+  --window-size=1050,780 --window-position=10,10 \
+  "$BROWSER_START_URL" \
+  >"$RUN_DIR/chrome.log" 2>&1 &
+
+PID=""
+WINDOW_ID=""
+for _ in $(seq 1 150); do
+  for wid in $(as_ctl xprop -root _NET_CLIENT_LIST 2>/dev/null | sed -n 's/.*window id #//p' | tr ',' ' '); do
+    owner="$(as_ctl xprop -id "$wid" _NET_WM_PID 2>/dev/null | sed -n 's/.*= //p' | tr -d ' ')"
+    if [ -n "$owner" ] && [ -e "/proc/$owner/exe" ] && \
+       [ "$(readlink -f "/proc/$owner/exe")" = "/opt/google/chrome/chrome" ]; then
+      PID="$owner"
+      WINDOW_ID="$wid"
+      break
+    fi
+  done
+  [ -n "$PID" ] && break
+  sleep 0.2
+done
+if [ -z "$PID" ]; then
+  tail -n 60 "$RUN_DIR/chrome.log" >&2 || true
+  exit 1
+fi
+
+python3 - "$RUN_DIR/browser.json" "$PID" "$WINDOW_ID" "$BROWSER_START_URL" <<'PY'
+import json
+import sys
+import time
+
+path, pid, window_id, start_url = sys.argv[1:5]
+window_value = int(window_id, 16) if window_id.lower().startswith("0x") else int(window_id)
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(
+        {
+            "pid": int(pid),
+            "window_id": window_value,
+            "start_url": start_url,
+            "started_monotonic_ns": time.monotonic_ns(),
+        },
+        handle,
+        indent=2,
+        sort_keys=True,
+    )
+print("browser ready")
+PY
+WRAPPER
+chmod 0755 "$RUN_DIR/launch_browser.sh"
+"$RUN_DIR/launch_browser.sh"
+CHROME_PID="$(python3 -c "import json;print(json.load(open('/run/nightwatch/browser.json'))['pid'])")"
 
 # ------------------------------------------------------- runner helper wrapper
 cat >"$RUN_DIR/as_controller.sh" <<'WRAPPER'
@@ -256,6 +367,10 @@ NW_EV_CUA_PROBE="$(printf '%s' "$CUA_PROBE" | head -c 800)" \
 NW_EV_XVFB_PID="$XVFB_PID" NW_EV_OPENBOX_PID="$OPENBOX_PID" \
 NW_EV_DBUS_PID="$DBUS_PID" NW_EV_CUA_PID="$CUA_PID" NW_EV_APP_PID="$APP_PID" \
 NW_EV_ATSPI_BIN="$ATSPI_BIN" \
+NW_EV_CHROME_PID="$CHROME_PID" \
+NW_EV_CHROME_PROFILE="${RUN_DIR}/chrome-profile" \
+NW_EV_BROWSER_START_URL="http://127.0.0.1:${APP_PORT}/" \
+NW_EV_BROWSER_JSON="${RUN_DIR}/browser.json" \
 python3 - "$EVIDENCE" <<'PY'
 import json
 import os
@@ -269,6 +384,16 @@ def run(*command: str) -> str:
     return (result.stdout or result.stderr).strip()
 
 
+def ok(*command: str) -> bool:
+    return subprocess.run(command, capture_output=True, check=False).returncode == 0
+
+
+chrome_profile = os.environ["NW_EV_CHROME_PROFILE"]
+browser_json: dict[str, object] = {}
+browser_json_path = os.environ["NW_EV_BROWSER_JSON"]
+if ok("test", "-f", browser_json_path):
+    with open(browser_json_path, encoding="utf-8") as handle:
+        browser_json = json.load(handle)
 evidence = {
     "started_monotonic_ns": time.monotonic_ns(),
     "app_user": os.environ["NW_EV_APP_USER"],
@@ -289,6 +414,12 @@ evidence = {
     "cua_driver_pid": os.environ["NW_EV_CUA_PID"] or None,
     "app_pid": os.environ["NW_EV_APP_PID"] or None,
     "at_spi_launcher": os.environ["NW_EV_ATSPI_BIN"] or None,
+    "chrome_pid": os.environ["NW_EV_CHROME_PID"] or None,
+    "chrome_profile": chrome_profile,
+    "chrome_profile_mode": run("stat", "-c", "%a %U:%G", chrome_profile),
+    "browser_start_url": os.environ["NW_EV_BROWSER_START_URL"],
+    "browser_window_id": browser_json.get("window_id"),
+    "browser_started_monotonic_ns": browser_json.get("started_monotonic_ns"),
     "cua_driver_version": run("cua-driver", "--version"),
     "browser_version": run("google-chrome", "--version") or run("chromium", "--version"),
     "run_dir_mode": run("stat", "-c", "%a %U:%G", "/run/nightwatch"),

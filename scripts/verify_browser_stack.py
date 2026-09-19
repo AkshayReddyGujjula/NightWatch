@@ -583,6 +583,14 @@ def main() -> None:
         socket_path = str(world.get("cua_socket") or "/run/nightwatch/cua.sock")
         evidence["cua_socket"] = socket_path
         driver = CuaDriver(sandbox, evidence, socket_path)
+        code, manifest_text, _ = _exec(
+            sandbox, "cat", "/run/nightwatch/cua-capabilities.json", timeout=20
+        )
+        if code == 0:
+            try:
+                evidence["runtime_manifest"] = json.loads(manifest_text)
+            except ValueError:
+                evidence["runtime_manifest_raw"] = manifest_text[:800]
         code, stdout, stderr = _exec(
             sandbox,
             "/run/nightwatch/as_controller.sh",
@@ -613,48 +621,79 @@ def main() -> None:
         if ready_code != 0:
             raise GateError(f"could not create frames dir: {ready_err[-200:]}")
 
-        # --- 2. drive CUA: prepare -> bind -> navigate ------------------------
-        prepared = driver.call(
-            "browser_prepare",
-            {"allow_launch": True, "profile": {"mode": "isolated_new"}},
-            session=session,
-        )
-        evidence["verdict"]["x11_atspi_cua_ready"] = True
-        prepared_pid = int(prepared["prepared_pid"])
-        evidence["prepared_pid"] = prepared_pid
+        # --- 2. bind the controller-owned browser -----------------------------
+        def _browser_identity() -> tuple[int, int]:
+            code, text, _ = _exec(
+                sandbox, "cat", "/run/nightwatch/browser.json", timeout=20
+            )
+            data = _json_from(text) if code == 0 else {}
+            return int(data.get("pid") or 0), int(data.get("window_id") or 0)
+
+        chrome_pid, window_id = _browser_identity()
+        if not chrome_pid or not window_id:
+            raise GateError("browser.json has no pid/window_id")
+        evidence["chrome_pid"] = chrome_pid
+        evidence["window_id"] = window_id
         code, exe_path, _ = _exec(
-            sandbox, "readlink", "-f", f"/proc/{prepared_pid}/exe", timeout=20
+            sandbox, "readlink", "-f", f"/proc/{chrome_pid}/exe", timeout=20
         )
         evidence["browser_executable"] = exe_path.strip() if code == 0 else None
+        listing = driver.call("list_windows", {"pid": chrome_pid}, session=session)
+        evidence["window_listing"] = listing.get("windows")
 
-        window: dict[str, Any] | None = None
-        for _ in range(40):
-            listing = driver.call("list_windows", {"pid": prepared_pid}, session=session)
-            windows = [
-                item
-                for item in (listing.get("windows") or [])
-                if isinstance(item, dict) and item.get("is_on_screen")
-            ]
-            if windows:
-                window = max(
-                    windows,
-                    key=lambda item: int(
-                        (item.get("bounds") or {}).get("width", 0)
-                    )
-                    * int((item.get("bounds") or {}).get("height", 0)),
+        prepared: dict[str, Any] | None = None
+        for attempt in (1, 2):
+            try:
+                prepared = driver.call(
+                    "browser_prepare",
+                    {
+                        "pid": chrome_pid,
+                        "window_id": window_id,
+                        "strategy": {"kind": "existing_profile"},
+                    },
+                    session=session,
                 )
                 break
-            time.sleep(0.25)
-        if window is None:
-            raise GateError("isolated browser window did not become ready")
-        window_id = int(window["window_id"])
-        evidence["window_id"] = window_id
+            except GateError as error:
+                message = str(error)
+                if attempt == 1 and "restart" in message.lower():
+                    evidence["prepare_first_attempt"] = message[:600]
+                    code, out, err = _exec(
+                        sandbox, "/run/nightwatch/launch_browser.sh", timeout=180
+                    )
+                    if code != 0:
+                        raise GateError(
+                            f"browser restart failed: {(err or out)[-400:]}"
+                        ) from error
+                    chrome_pid, window_id = _browser_identity()
+                    evidence["chrome_pid_after_restart"] = chrome_pid
+                    evidence["window_id_after_restart"] = window_id
+                    listing = driver.call(
+                        "list_windows", {"pid": chrome_pid}, session=session
+                    )
+                    evidence["window_listing_after_restart"] = listing.get("windows")
+                    continue
+                raise
+        evidence["prepare"] = prepared
+        evidence["verdict"]["x11_atspi_cua_ready"] = True
 
         bound = driver.call(
             "get_browser_state",
-            {"pid": prepared_pid, "window_id": window_id},
+            {"pid": chrome_pid, "window_id": window_id},
             session=session,
         )
+        evidence["binding"] = {
+            key: bound.get(key)
+            for key in (
+                "binding_quality",
+                "binding_route",
+                "endpoint_access_class",
+                "endpoint_transport",
+                "mode",
+                "mutation_allowed",
+                "native_title",
+            )
+        }
         target_id = str(bound["target_id"])
         tabs = [tab for tab in (bound.get("tabs") or []) if isinstance(tab, dict)]
         if not tabs:
